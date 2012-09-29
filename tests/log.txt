@@ -1,0 +1,33 @@
+[Sun Sep 30 01:47:20 2012] [Init] Changeset 6e787ec, changeset number 2, build number 0
+[Sun Sep 30 01:47:20 2012] OrientDB test: Start
+[Sun Sep 30 01:47:20 2012] orientsrv::connect(): Connected to localhost:2424, protocol: 12, SRV session [0x187]
+[Sun Sep 30 01:47:20 2012] orientdb::open(): Opened DB tinkerpop, DB session [0x188]
+[Sun Sep 30 01:47:20 2012] size1: 926262
+[Sun Sep 30 01:47:20 2012] count1: 10164
+[Sun Sep 30 01:47:20 2012] DB tinkerpop closed
+[Sun Sep 30 01:47:20 2012] orientdb::open(): Opened DB test, DB session [0x189]
+[Sun Sep 30 01:47:20 2012] size2: 5636
+[Sun Sep 30 01:47:20 2012] count2: 94
+[Sun Sep 30 01:47:20 2012] OrientPP::query [JS] [OrientDBTest():test.cpp:31] var r = db.query('select from ouser');print(r);r
+[Sun Sep 30 01:47:20 2012] query has 3 records
+[Sun Sep 30 01:47:20 2012] 0: OUser@name:"admin",password:"{SHA-256}8C6976E5B5410415BDE908BD4DEE15DFB167A9C873FC4BB8A81F6F2AB448A918",status:"ACTIVE",roles:[#3:0]
+[Sun Sep 30 01:47:20 2012] 1: OUser@name:"reader",password:"{SHA-256}3D0941964AA3EBDCB00CCEF58B1BB399F9F898465E9886D5AEC7F31090A0FB30",status:"ACTIVE",roles:[#3:1]
+[Sun Sep 30 01:47:20 2012] 2: OUser@name:"writer",password:"{SHA-256}B93006774CBDD4B299389A03AC3D88C3A76B460D538795BC12718011A909FBA5",status:"ACTIVE",roles:[#3:2]
+[Sun Sep 30 01:47:20 2012] OrientPP::query [GREMLIN] [OrientDBTest():test.cpp:42] v = g.addVertex()
+[Sun Sep 30 01:47:20 2012] query has 1 records
+[Sun Sep 30 01:47:20 2012] OrientPP::query [GREMLIN] [OrientDBTest():test.cpp:45] g.stopTransaction(SUCCESS)
+[Sun Sep 30 01:47:21 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:47] select * from ouser
+[Sun Sep 30 01:47:21 2012] query has 3 records
+[Sun Sep 30 01:47:21 2012] 0: OUser@name:"admin",password:"{SHA-256}8C6976E5B5410415BDE908BD4DEE15DFB167A9C873FC4BB8A81F6F2AB448A918",status:"ACTIVE",roles:[#3:0]
+[Sun Sep 30 01:47:21 2012] 1: OUser@name:"reader",password:"{SHA-256}3D0941964AA3EBDCB00CCEF58B1BB399F9F898465E9886D5AEC7F31090A0FB30",status:"ACTIVE",roles:[#3:1]
+[Sun Sep 30 01:47:21 2012] 2: OUser@name:"writer",password:"{SHA-256}B93006774CBDD4B299389A03AC3D88C3A76B460D538795BC12718011A909FBA5",status:"ACTIVE",roles:[#3:2]
+[Sun Sep 30 01:47:21 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:56] drop class Slice
+[Sun Sep 30 01:47:21 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:58] create class Slice extends V
+[Sun Sep 30 01:47:21 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:60] create vertex Slice
+[Sun Sep 30 01:47:21 2012] Vertex1: #2:57
+[Sun Sep 30 01:47:21 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:64] create vertex Slice
+[Sun Sep 30 01:47:21 2012] Vertex2: #2:58
+[Sun Sep 30 01:47:21 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:68] create edge from #2:57 to #2:58
+[Sun Sep 30 01:47:21 2012] Edge1: #7:15
+[Sun Sep 30 01:47:21 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:71] traverse * from #2:57
+[Sun Sep 30 01:47:21 2012] OrientDB test: Done
