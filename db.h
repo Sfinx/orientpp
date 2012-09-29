@@ -1,0 +1,508 @@
+
+// Copyright (C) 2012, Rus V. Brushkoff, All rights reserved.
+
+#ifndef _ORIENTPP_DB_H_
+#define _ORIENTPP_DB_H_
+
+#include <stdint.h>
+
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+typedef int8_t s8;
+typedef int16_t s16;
+typedef int32_t s32;
+typedef int64_t s64;
+
+#include <cstdlib>
+#include <iostream>
+#include <string>
+
+#include <boost/asio.hpp>
+#include <boost/lambda/bind.hpp>
+#include <boost/lambda/lambda.hpp>
+
+using boost::asio::deadline_timer;
+using boost::asio::ip::tcp;
+using boost::lambda::bind;
+using boost::lambda::var;
+using boost::lambda::_1;
+
+#define ORIENTPP_DEBUG	1
+
+namespace OrientPP {
+
+enum {
+#ifdef ORIENTPP_DEBUG
+  ORIENTPP_DEFAULT_VERBOSE_LEVEL = 1,
+#else
+  ORIENTPP_DEFAULT_VERBOSE_LEVEL = 0,
+#endif
+  ORIENTPP_DEFAULT_OPS_TIMEOUT = 5
+};
+
+#define ORIENTPP_DRIVER_NAME		"OrientPP"
+#define ORIENTPP_DRIVER_VERSION		"v0.1"
+#define ORIENTPP_DRIVER_PROTO_VERSION	0xc
+#define ORIENTDB_SERVER_PORT		"2424"
+
+enum { // binary protocol commands
+  ORIENTDB_SHUTDOWN = 1,
+  ORIENTDB_CONNECT,
+  ORIENTDB_DB_OPEN,
+  ORIENTDB_DB_CREATE,
+  ORIENTDB_DB_CLOSE,
+  ORIENTDB_DB_EXIST,
+  ORIENTDB_DB_DELETE,
+  ORIENTDB_DB_SIZE,
+  ORIENTDB_DB_COUNTRECORDS,
+  ORIENTDB_DATACLUSTER_ADD,
+  ORIENTDB_DATACLUSTER_REMOVE,
+  ORIENTDB_DATACLUSTER_COUNT,
+  ORIENTDB_DATACLUSTER_DATARANGE,
+  ORIENTDB_DATASEGMENT_ADD = 20,
+  ORIENTDB_DATASEGMENT_REMOVE,
+  ORIENTDB_RECORD_LOAD = 30,
+  ORIENTDB_RECORD_CREATE,
+  ORIENTDB_RECORD_UPDATE,
+  ORIENTDB_RECORD_DELETE,
+  ORIENTDB_COUNT = 40,
+  ORIENTDB_COMMAND,
+  ORIENTDB_TX_COMMIT = 60,
+  ORIENTDB_CONFIG_GET = 70,
+  ORIENTDB_CONFIG_SET,
+  ORIENTDB_CONFIG_LIST,
+  ORIENTDB_DB_RELOAD
+};
+
+enum { // db types
+  AS_DOCUMENT_DB,
+  AS_GRAPH_DB
+};
+
+enum { // storage types
+  DB_LOCAL_STORAGE,
+  DB_MEMORY_STORAGE
+};
+
+enum { // query types
+  AS_SQL,
+  AS_JAVASCRIPT,
+  AS_ECMASCRIPT,
+  AS_GREMLIN,
+  AS_GROOVY,
+  AS_GREMLIN_GROOVY
+};
+
+enum { // record types
+ ORIENT_NULL_RECORD = 0,
+ ORIENT_RECORD_ID,
+ ORIENT_SERIALIZED_RECORD,
+ ORIENT_DOCUMENT_RECORD = 'd',
+ ORIENT_FLAT_DATA_RECORD = 'f',
+ ORIENT_RAW_BYTES_RECORD = 'b',
+};
+
+class tcp_client {
+  int timeout_seconds;
+  bool verbose_;
+public:
+  void verbose(bool v) { verbose_ = v; }
+  void timeout(int seconds) { timeout_seconds = seconds; }
+  tcp_client() : socket_(io_service_), deadline_(io_service_) {
+    deadline_.expires_at(boost::posix_time::pos_infin);
+    check_deadline();
+    timeout_seconds = ORIENTPP_DEFAULT_OPS_TIMEOUT;
+    verbose_ = false;
+  }
+  void close() { socket_.close(); io_service_.stop(); }
+  void connect(const string& host, const string &port) {
+    tcp::resolver::query query(host, port);
+    tcp::resolver::iterator iter = tcp::resolver(io_service_).resolve(query);
+    deadline_.expires_from_now(boost::posix_time::seconds(timeout_seconds));
+    boost::system::error_code ec = boost::asio::error::would_block;
+    boost::asio::async_connect(socket_, iter, var(ec) = _1);
+    do io_service_.run_one(); while (ec == boost::asio::error::would_block);
+    if (ec || !socket_.is_open())
+      throw boost::system::system_error(
+          ec ? ec : boost::asio::error::operation_aborted);
+  }
+  void do_read(size_t len = 1) {
+    deadline_.expires_from_now(boost::posix_time::seconds(timeout_seconds));
+    boost::system::error_code ec = boost::asio::error::would_block;
+    boost::asio::async_read(socket_, buf_, boost::asio::transfer_at_least(len), var(ec) = _1);
+    do io_service_.run_one(); while (ec == boost::asio::error::would_block);
+    if (ec)
+      throw boost::system::system_error(ec);
+  }
+  string read_data() {
+    do_read();
+    size_t len = buf_.size();
+    if (verbose_)
+      app_log << "read " << len << " bytes";
+    const char *data = boost::asio::buffer_cast<const char*>(buf_.data());
+    if (verbose_) {
+      for (unsigned int i = 0; i < len; i++) {
+       if (data[i] < 0x20)
+         app_log << "r:" << i << ":0x" << hex << int(u8(data[i]));
+       else
+         app_log << "r:" << i << ":" << char(data[i]) << " | 0x" << hex << int(u8(data[i]));
+      }
+    }
+    buf_.consume(len);
+    return string(data, len);
+  }
+  int read_data(u8 *buf, size_t len) {
+    do_read(len);
+    const char *data = boost::asio::buffer_cast<const char*>(buf_.data());
+    if (len > buf_.size()) {
+      if (verbose_)
+        app_log << "tcp_client():read " << buf_.size() << " from " << len;
+      len = buf_.size();
+    }
+    memcpy(buf, data, len);
+    buf_.consume(len);
+    return len;
+  }
+  void write_data(const string& data) {
+    if (verbose_) {
+      for (unsigned int i = 0; i < data.size(); i++) {
+        if (data[i] < 0x20)
+          app_log << "w:" << i << ":0x" << hex << int(u8(data[i]));
+        else
+          app_log << "w:" << i << ":" << char(data[i]) << " | 0x" << hex << int(u8(data[i]));
+        }
+    }
+    deadline_.expires_from_now(boost::posix_time::seconds(timeout_seconds));
+    boost::system::error_code ec = boost::asio::error::would_block;
+    boost::asio::async_write(socket_, boost::asio::buffer(data), var(ec) = _1);
+    do io_service_.run_one(); while (ec == boost::asio::error::would_block);
+    if (ec)
+      throw boost::system::system_error(ec);
+  }
+private:
+  void check_deadline() {
+    if (deadline_.expires_at() <= deadline_timer::traits_type::now()) {
+      boost::system::error_code ignored_ec;
+      socket_.close(ignored_ec);
+      deadline_.expires_at(boost::posix_time::pos_infin);
+    }
+    deadline_.async_wait(bind(&tcp_client::check_deadline, this));
+  }
+
+  boost::asio::io_service io_service_;
+  tcp::socket socket_;
+  deadline_timer deadline_;
+  boost::asio::streambuf buf_;
+};
+
+struct orientsrv_buf {
+  string data;
+  orientsrv_buf() { }
+  orientsrv_buf(string s) { append(s); }
+  void append(orientsrv_buf &b) {
+    u32 len = b.data.size();
+    append((s32)len);
+    data.append(b.data.c_str(), len);
+  }
+  void append(s32 val) {
+    val = htonl(val);
+    data.append((const char *)&val, sizeof(val));
+  }
+  void append(u16 val) {
+    val = htons(val);
+    data.append((const char *)&val, sizeof(val));
+  }
+  void append(u8 val) {
+    data.append((const char *)&val, 1);
+  }
+  string safe_quote(string s) {
+   for (uint i = 0; i < s.size(); i++) {
+     if ((s[i] == '"') || (s[i] == '\\'))
+       s.insert(i++, 1, '\\');
+   }
+   return s;
+  }
+  void append(string s) {
+    string quoted(s);
+    u32 len = quoted.size();
+    append((s32)len);
+    data.append(quoted.c_str(), len);
+  }
+};
+
+struct orientsession {
+  s32 id;
+  bool connected;
+  orientsession() : id(-1), connected(false) { }
+};
+
+struct orientrsp {
+ string data;
+ u8 res;
+ size_t pos;
+ const u8 *buf() { return (u8 *)(data.c_str() + pos); }
+ orientrsp(string v) : data(v), res(data[0]), pos(1) { }
+ // step can be negative
+ void seek(int step) { pos += step; if (pos > data.size()) pos = data.size(); }
+  // long
+  bool parse(s64 *dst) { return parse((u64 *)dst); } 
+  bool parse(u64 *dst) {
+    memcpy(dst, buf(), 8);
+    *dst = be64toh(*dst);
+    seek(8);
+    return true;
+  }
+  // int
+  bool parse(s32 *dst) { return parse((u32 *)dst); } 
+  bool parse(u32 *dst) {
+    memcpy(dst, buf(), 4);
+    *dst = ntohl(*dst);
+    seek(4);
+    return true;
+  }
+  // short
+  bool parse(s16 *dst) { return parse((u16 *)dst); } 
+  bool parse(u16 *dst) {
+    memcpy(dst, buf(), 2);
+    *dst = ntohs(*dst);
+    seek(2);
+    return true;
+  }
+  // byte
+  bool parse(u8 *dst) {
+    *dst = *(buf());
+    seek(1);
+    return true;
+  }
+  // string
+  bool parse(string *dst) {
+    u32 len;
+    parse(&len);
+    *dst = string((const char*)buf(), len);
+    seek(len);
+    return true;
+  }
+  // bytes
+  bool parse(orientsrv_buf *dst) {
+    u32 len;
+    parse(&len);
+    dst->data = string((const char*)buf(), len);
+    seek(len);
+    return true;
+  }
+  string parse_error() {
+    string err;
+    while (1) {
+      u8 next_error;
+      parse(&next_error);
+      if (!next_error)
+        break;
+      string exception_class;
+      parse(&exception_class);
+      string exception_message;
+      parse(&exception_message);
+      if (err.size())
+        err += ",";
+      err += (exception_class + ": " + exception_message);
+    }
+    return err;
+  }
+};
+
+class orientsrv {
+  int verbose_level;
+  orientsession session;
+  u16 protocol;
+  string url, user, pass, host, port;
+  tcp_client tc;
+  orientrsp read_data(orientsession *s = 0) {
+    orientrsp rsp(tc.read_data());
+    s32 session_id;
+    rsp.parse(&session_id);
+    orientsession *curr_session = (s ? s : &session);
+    if (curr_session->connected && (session_id != curr_session->id)) {
+      string err = "orientsrv::Error: Wrong Server Session ID"; 
+      if (verbose())
+        app_log << err;
+      throw Exception(err);
+    }
+    if (rsp.res) {
+      string err = "orientsrv::Error: " + rsp.parse_error();
+      if (verbose())
+        app_log << err;
+      throw Exception(err);
+    }
+    return rsp;
+  }
+  void init() {
+    verbose(ORIENTPP_DEFAULT_VERBOSE_LEVEL);
+    tc.timeout(ORIENTPP_DEFAULT_OPS_TIMEOUT);
+    port = ORIENTDB_SERVER_PORT;
+    protocol = 0;
+  }
+  void send(u8 cmd, orientsrv_buf &r, orientsession *s = 0) {
+    string req((const char *)&cmd, 1);
+    s32 sid = htonl(s ? s->id : session.id);
+    req.append((const char *)&sid, sizeof(sid));
+    if (r.data.size())
+      req.append(r.data.c_str(), r.data.size());
+    tc.write_data(req);
+  }
+  void error(string err) {
+    if (verbose())
+      app_log << err;
+    throw Exception(err);
+  }
+  void verbose(int v) { verbose_level = v; if (v > 1) tc.verbose(1); else tc.verbose(0); }
+  int verbose() { return verbose_level; }
+ public:
+  bool dbexists(string db);
+  void dropdb(string db);
+  bool isconnected() { return session.connected; }
+  void timeout(int t) { tc.timeout(t); }
+  void createdb(string db, int db_type, int db_engine);
+  void connect(string _url, string user = "", string pass = "");
+  orientsrv(string _url, string user = "", string pass = "") { init(); connect(_url, user, pass); }
+  void shutdown() {
+    if (verbose())
+      app_log << "orientsrv::shutdown() called for [" << session.id << "]";
+    if (!isconnected())
+      throw Exception("orientsrv::shutdown(): Connect to server first");
+    orientsrv_buf r(user);
+    r.append(pass);
+    send(ORIENTDB_SHUTDOWN, r);
+    // wait for successfull responce
+    read_data();
+    throw Exception("orientsrv::shutdown(): Completed");
+  }
+  orientsrv() { init(); }
+  ~orientsrv();
+  friend class orientdb;
+};
+
+class orientdb {
+  orientsrv *srv;
+  int db_type;
+  string db, user, pass;
+  orientsession session;
+ public:
+  void open(string db_, int db_type_, string u, string p);
+  u64 count();
+  u64 size();
+  void close();
+  orientrsp read_data(orientsession *s = 0) { return srv->read_data(s ? s : &session); }
+  void send(u8 cmd) { orientsrv_buf dummy; srv->send(cmd, dummy, &session); }
+  void send(u8 cmd, orientsrv_buf &r, orientsession *s = 0) { srv->send(cmd, r, s ? s : &session); }
+  void error(string err) { srv->error(err); }
+  int verbose() { return srv->verbose(); }
+  void verbose(int v) { srv->verbose(v); }
+  bool isconnected() { return session.connected; }
+  orientdb(orientsrv &s) : srv(&s) { }
+  ~orientdb();
+};
+
+struct orient_record_t {
+  u8 type;
+  s16 id;
+  s64 pos;
+  s32 version;
+  string content;
+  orient_record_t(string &serialized) : type(ORIENT_SERIALIZED_RECORD), content(serialized) { }
+  orient_record_t(s16 id_, s64 pos_) : type(ORIENT_RECORD_ID), id(id_), pos(pos_) { }
+  orient_record_t(u8 type_, s16 id_, s64 pos_, s32 version_, string &content_) :
+    type(type_),
+    id(id_),
+    pos(pos_),
+    version(version_),
+    content(content_) { }
+  orient_record_t() : type(ORIENT_NULL_RECORD) { }
+  operator string() { // parse record to string
+    stringstream ss;
+    switch (type) {
+      case ORIENT_SERIALIZED_RECORD:
+      case ORIENT_DOCUMENT_RECORD:
+        return content;
+      case ORIENT_RECORD_ID:
+        ss << "#" << id << ":" << pos;
+        return ss.str();
+      case ORIENT_NULL_RECORD:
+      default:
+        return "";
+    }
+  }
+};
+  
+extern orient_record_t orient_null;
+
+struct orientresult {
+  vector <orient_record_t> records;
+};
+
+typedef boost::shared_ptr<orientresult> orientresult_ptr;
+
+class orientquery {
+  orientdb *db;
+  // orientpreparestatement *ps;
+  string q;
+  bool prepared;
+  bool autocommit_;
+  u64 update_counter_;
+  ostringstream buf;
+  orientquery& operator= (const orientquery&) = delete;
+  orientquery& operator== (const orientquery&) = delete;
+  orientquery(const orientquery &)  = delete;
+  orient_record_t parse_record(orientrsp &rsp);
+  u32 parse_records_collection(orientrsp &rsp, vector <orient_record_t> *records);
+public:
+  orient_record_t insert_id;
+  const char *str() { return buf.str().size() ? buf.str().c_str() : q.c_str(); }
+  template <typename T> orientquery& operator<< (const T &value) {
+    buf << value;
+    if (prepared) { // close prev statement
+    //  if (ps) {
+    //    ps->close();
+    //    ps = 0;
+    //  }
+      prepared = false;
+    }
+    return *this;
+  }
+  void autocommit(bool ac) { autocommit_ = ac; }
+  // prepared stuff
+  void set(uint pos, string &val); // throw(Exception);
+  u64 affected_rows() { return update_counter_; }
+  orientquery(orientdb &db_, const char *qs = 0) : db(&db_), q(qs ? qs : ""), prepared(false),
+    autocommit_(true) { }
+  orientquery(orientdb &db_, string qs) : db(&db_), q(qs), prepared(false), autocommit_(true) { }
+  ~orientquery() {
+    //if (ps)
+    //  ps->close();
+  }
+#ifdef ORIENTPP_DEBUG
+  orientresult_ptr execute_debug(const char *file, int line, const char *func, const char *qs = 0,
+     int query_type = AS_SQL);
+#define execute(x)       execute_debug(__FILE__, __LINE__, __FUNCTION__, 0, x)
+#define val(x)          val_debug(__FILE__, __LINE__, __FUNCTION__, x)
+#else
+  orientresult_ptr execute(const char *qs = 0, int query_type = AS_SQL);
+#endif
+};
+
+// used for client_id generation
+class unique_counter
+{
+ boost::mutex mutex;
+ unsigned long count;
+public:
+ unique_counter() : count(0) { }
+ unsigned long next() {
+   boost::mutex::scoped_lock scoped_lock(mutex);
+   return ++count;
+ }
+};
+
+}; // namespace
+
+#endif

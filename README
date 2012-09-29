@@ -1,0 +1,25 @@
+About:
+=====
+
+This is simple C++ binding for OrientDB
+
+Compile
+=======
+
+make
+
+Usage example
+====================
+
+Study test.cpp
+
+Support:
+=======
+
+Linux is supported.
+
+Author:
+======
+
+Rus <rus [at] sfinxsoft [dot] com>
+Web: http://sfinxsoft.com
