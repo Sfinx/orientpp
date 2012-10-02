@@ -1,6 +1,6 @@
 
  - OrientTree class [orientresult.parse(&OrientTree)]
  - export to JSON [OrientTree.toJSON()]
- - object2record opeartions [db.save(OrientTree)]
+ - object2record operations [db.save(OrientTree)]
  - multithreaded concurrent operations
  - transactions support [ db.begin() / db.commit() / db.rollback() ]

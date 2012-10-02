@@ -5,70 +5,123 @@
 
 using namespace OrientPP;
 
+// orientclass Slice(slice_class_id);
+class orienttree {
+ public:
+  orienttree(orientresult_ptr res /*, orient_record_t root */) {
+    app_log << "Dumping tree";
+    // orient_record_t root = res->records[0];
+    for (uint i = 0; i < res->records.size(); i++) {
+      app_log << res->records[i].rid();
+    }
+  }
+  string tojson() {
+    return "";
+  }
+};
+
+void dump_result(orientresult_ptr res)
+{
+ app_log << "Result has " << res->records.size() << " records";
+ for (u32 r = 0; r < res->records.size(); r++) {
+   stringstream ss;
+   ss << "#" << r << " " << string(res->records[r]);
+   app_log << ss.str();
+   ss.str("");
+ }
+}
+
 void OrientDBTest()
 {
  app_log << "OrientDB test: Start";
  orientsrv server("localhost", "root" , "root");
-#if 0
+#if TEST_SHUTDOWN
  server.shutdown();
- orientsrv server("localhost");
+#endif
  if (server.dbexists("test"))
    server.dropdb("test");
  server.createdb("test", AS_GRAPH_DB, DB_LOCAL_STORAGE);
-#endif
- if (!server.dbexists("test"))
-   server.createdb("test", AS_GRAPH_DB, DB_LOCAL_STORAGE);
  orientdb db(server);
- db.open("tinkerpop", AS_GRAPH_DB, "admin", "admin");
- app_log << "size1: " << db.size();
- app_log << "count1: " << db.count();
- db.close();
  db.open("test", AS_GRAPH_DB, "admin", "admin");
- app_log << "size2: " << db.size();
- app_log << "count2: " << db.count();
+ app_log << "DB size: " << db.size();
+ app_log << "DB records count: " << db.count();
  orientquery q(db);
+ q << "select * from ouser";
+ dump_result(q.execute(AS_SQL));
+
+ q << "drop class Slices";
+ q.execute(AS_SQL);
+
+ q << "create class Slices extends V";
+ dump_result(q.execute(AS_SQL));
+ q << "create property Slices.name STRING";
+ dump_result(q.execute(AS_SQL));
+ q << "create property Slices.description STRING";
+ dump_result(q.execute(AS_SQL));
+ q << "create class connected_to extends E";
+ dump_result(q.execute(AS_SQL));
+ 
+ q << "create vertex Slices create vertex Slices set name='Dao', description='Root'";
+ dump_result(q.execute(AS_SQL));
+ orient_record_t root_slice = q.insert_id;
+ q << "create vertex Slices set name='Texts', description='Texts, Docs'";
+ dump_result(q.execute(AS_SQL));
+ orient_record_t texts_slice = q.insert_id;
+ q << "create edge connected_to from " << string(texts_slice) << " to " << string(root_slice);
+ dump_result(q.execute(AS_SQL));
+ q << "create vertex Slices set name='Books', description='Books'";
+ dump_result(q.execute(AS_SQL));
+ q << "create edge connected_to from " << string(q.insert_id) << " to " << string(texts_slice);
+ dump_result(q.execute(AS_SQL));
+
+ q << "create vertex Slices set name='Programming', description='All about programming'";
+ dump_result(q.execute(AS_SQL));
+ orient_record_t programming_slice = q.insert_id;
+ q << "create edge connected_to from " << string(q.insert_id) << " to " << string(root_slice);
+ dump_result(q.execute(AS_SQL));
+ q << "create vertex Slices set name='Languages', description='All languages'";
+ dump_result(q.execute(AS_SQL));
+ orient_record_t languages_slice = q.insert_id;
+ q << "create edge connected_to from " << string(q.insert_id) << " to " << string(programming_slice);
+ dump_result(q.execute(AS_SQL));
+ q << "create vertex Slices set name='C', description='C language'";
+ dump_result(q.execute(AS_SQL));
+ q << "create edge connected_to from " << string(q.insert_id) << " to " << string(languages_slice);
+ dump_result(q.execute(AS_SQL));
+ q << "create vertex Slices set name='C++', description='C++ language'";
+ dump_result(q.execute(AS_SQL));
+ q << "create edge connected_to from " << string(q.insert_id) << " to " << string(languages_slice);
+ dump_result(q.execute(AS_SQL));
+ 
+ q << "create vertex Slices set name='Images', description='Pictures'";
+ dump_result(q.execute(AS_SQL));
+ orient_record_t images_slice = q.insert_id;
+ q << "create edge connected_to from " << string(q.insert_id) << " to " << string(root_slice);
+ dump_result(q.execute(AS_SQL));
+ q << "create vertex Slices set name='Nature', description='Pics of nature'";
+ dump_result(q.execute(AS_SQL));
+ q << "create edge connected_to from " << string(q.insert_id) << " to " << string(images_slice); 
+ dump_result(q.execute(AS_SQL));
+ // db.verbose(2);
+ q << "traverse * from V"; // << string(root_slice);
+ orientresult_ptr res = q.execute(AS_SQL);
+ app_log << res->records.size();
+ dump_result(res);
+
+ orienttree sfinx_objects_tree(res /*, root_slice */);
+ app_log << "JSON: " << sfinx_objects_tree.tojson();
+
+#ifdef WHEN_JS_SOMETIME_WILL_WORK_IN_SNAPSHOT
  q << "var r = db.query('select from ouser');print(r);r";
- orientresult_ptr res = q.execute(AS_JAVASCRIPT);
- app_log << "query has " << res->records.size() << " records";
- for (u32 r = 0; r < res->records.size(); r++) {
-   stringstream ss;
-   // TODO: parse record by fields/types
-   // ....
-   ss << r << ": " << string(res->records[r]);
-   app_log << ss.str();
-   ss.str("");
- }
+ res = q.execute(AS_JAVASCRIPT);
+#endif
+#ifdef TEST_GREMLIN
  q << "v = g.addVertex()";
- res = q.execute(AS_GREMLIN);
- app_log << "query has " << res->records.size() << " records";
+ dump_result(q.execute(AS_GREMLIN));
  q << "g.stopTransaction(SUCCESS)";
  q.execute(AS_GREMLIN);
- q << "select * from ouser";
- res = q.execute(AS_SQL);
- app_log << "query has " << res->records.size() << " records";
- for (u32 r = 0; r < res->records.size(); r++) {
-   stringstream ss;
-   ss << r << ": " << string(res->records[r]);
-   app_log << ss.str();
-   ss.str("");
- }
- q << "drop class Slice";
- q.execute(AS_SQL);
- q << "create class Slice extends V";
- q.execute(AS_SQL);
- q << "create vertex Slice";
- q.execute(AS_SQL);
- orient_record_t vertex1 = q.insert_id;
- app_log << "Vertex1: " << string(vertex1);
- q << "create vertex Slice";
- q.execute(AS_SQL);
- orient_record_t vertex2 = q.insert_id;
- app_log << "Vertex2: " << string(vertex2);
- q << "create edge from " << string(vertex1) << " to " << string(vertex2);
- q.execute(AS_SQL);
- app_log << "Edge1: " << string(q.insert_id);
- q << "traverse * from " << string(vertex1);
- q.execute(AS_SQL);
+#endif
+ db.close();
  app_log << "OrientDB test: Done";
 }
 

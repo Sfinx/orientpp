@@ -23,8 +23,7 @@ void orientsrv::connect(string _url, string _user, string _pass)
    app_log << "orientsrv::connect(): Connecting to " << host << ":" << port;
  try {
    tc.connect(host, port);
-   if (tc.read_data((u8 *)&protocol, sizeof(u16)) != sizeof(u16))
-     error("Can't read protocol version !");
+   tc.read_data((u8 *)&protocol, sizeof(u16));
    protocol = ntohs(protocol);
    if (_user.size() && _pass.size()) {
      user = _user;
@@ -37,8 +36,7 @@ void orientsrv::connect(string _url, string _user, string _pass)
      r.append(itoa(int(client_id.next())));
      r.append(_user);
      r.append(_pass);
-     send(ORIENTDB_CONNECT, r);
-     orientrsp rsp = read_data();
+     orientrsp rsp = send(ORIENTDB_CONNECT, r);
      rsp.parse(&session.id);
      if (verbose())
        app_log << "orientsrv::connect(): Connected to " << host << ":" << port << ", protocol: "
@@ -59,9 +57,8 @@ void orientsrv::connect(string _url, string _user, string _pass)
 
 u64 orientdb::size()
 {
- send(ORIENTDB_DB_SIZE);
- orientrsp rsp = read_data(); 
- u64 sz = 0;
+ orientrsp rsp = send(ORIENTDB_DB_SIZE);
+ u64 sz;
  rsp.parse(&sz);
  if (verbose() > 1)
    app_log << "DB " << db << " size is " << sz;
@@ -70,9 +67,8 @@ u64 orientdb::size()
 
 u64 orientdb::count()
 {
- send(ORIENTDB_DB_COUNTRECORDS);
- orientrsp rsp = read_data(); 
- u64 recs = 0;
+ orientrsp rsp = send(ORIENTDB_DB_COUNTRECORDS);
+ u64 recs;
  rsp.parse(&recs);
  if (verbose() > 1)
    app_log << "DB " << db << " has " << recs << " records";
@@ -85,8 +81,8 @@ void orientdb::close()
    return;
  if (verbose() > 1)
    app_log << "Closing " << db;
- send(ORIENTDB_DB_CLOSE);
- // orientrsp rsp = read_data(); 
+ orientrsp rsp = send(ORIENTDB_DB_CLOSE);
+ // no result returned (?!)
  session.connected = false;
  session.id = -1;
  if (verbose())
@@ -121,8 +117,7 @@ void orientdb::open(string db_, int db_type_, string u, string p)
  r.append((db_type == AS_DOCUMENT_DB) ? "document" : "graph");
  r.append(user);
  r.append(pass);
- send(ORIENTDB_DB_OPEN, r);
- orientrsp rsp = read_data();
+ orientrsp rsp = send(ORIENTDB_DB_OPEN, r);
  rsp.parse(&session.id);
  if (verbose())
    app_log << "orientdb::open(): Opened DB " << db << ", DB session [0x" << hex << session.id << "]";
@@ -131,7 +126,7 @@ void orientdb::open(string db_, int db_type_, string u, string p)
  // (cluster-type:string)(cluster-dataSegmentId:short)](cluster-config:bytes)
  // кластер у них что-то типа таблицы
  // несколько проблем:
- //  - 1.2.0-snapshot выдает num_of_clusters > чем реальное количество в пакете
+ //  - 1.2.0-snapshot иногда выдает num_of_clusters > чем реальное количество в пакете
  //  - cluster_id может быть > чем num_of_clusters (?!) исходя из исходника OStorageRemote.java:1822
  //  - в свете выявленного нифига непонятно где же кончало в пакете
  u16 num_of_clusters;
@@ -158,16 +153,21 @@ void orientdb::open(string db_, int db_type_, string u, string p)
  if (verbose() > 1) {
    if (real_num_of_clusters != num_of_clusters)
      app_log << "DB has " << real_num_of_clusters << " clusters [reported " << num_of_clusters << "]";
-   else
+   else {
      app_log << "DB has " << real_num_of_clusters << " clusters";
+     // read (cluster-config:bytes)
+     orientsrv_buf cluster_config;
+     rsp.parse(&cluster_config);
+     if (cluster_config.size())
+       app_log << "TODO: parse cluster_config";
+   }
  }
 }
 
 bool orientsrv::dbexists(string db)
 {
  orientsrv_buf r(db);
- send(ORIENTDB_DB_EXIST, r);
- orientrsp rsp = read_data(); 
+ orientrsp rsp = send(ORIENTDB_DB_EXIST, r);
  u8 exist;
  rsp.parse(&exist);
  if (verbose() > 1)
@@ -180,9 +180,10 @@ void orientsrv::dropdb(string db)
  if (verbose() > 1)
    app_log << "Dropping DB " << db;
  orientsrv_buf r(db);
- send(ORIENTDB_DB_DELETE, r);
+ orientrsp rsp = send(ORIENTDB_DB_DELETE, r);
  // reply is sid & protoversion
- read_data(); 
+ // ...
+ rsp.check_result();
  if (verbose())
    app_log << "DB " << db << " dropped";
 }
@@ -199,8 +200,8 @@ void orientsrv::createdb(string db, int db_type, int db_engine)
  orientsrv_buf r(db);
  r.append((db_type == AS_DOCUMENT_DB) ? "document" : "graph");
  r.append((db_engine == DB_LOCAL_STORAGE) ? "local" : "memory");
- send(ORIENTDB_DB_CREATE, r);
- orientrsp rsp = read_data(); 
+ orientrsp rsp = send(ORIENTDB_DB_CREATE, r);
+ rsp.check_result();
  if (verbose())
    app_log << "DB " << db << " created";
 }
@@ -245,10 +246,10 @@ orient_record_t orientquery::parse_record(orientrsp &rsp)
      rsp.parse(&record_content);
      if (db->verbose() > 1)
        app_log << "got record: " << cluster_id << ":" << cluster_pos << ", type: " << record_type
-         << ", ver: " << record_version << ", len: " << record_content.data.size();
+         << ", ver: " << record_version << ", len: " << record_content.size();
      return orient_record_t(record_type, cluster_id, cluster_pos, record_version, record_content.data);
    default:
-     throw Exception("parse_record()");
+     throw Exception("parse_record(): unknown record_header [" + itoa(record_header) + "]");
  }
  return orient_null;;
 }
@@ -335,9 +336,8 @@ orientresult_ptr orientquery::execute(const char *qs, int query_type)
   // } else // no params
   command_serialized.append((s32)0);
   r.append(command_serialized);
-  db->send(ORIENTDB_COMMAND, r);
+  orientrsp rsp = db->send(ORIENTDB_COMMAND, r);
 //  db->verbose(2);
-  orientrsp rsp = db->read_data();
   // [(payload-status:byte)[(content:?)]*]+
   u8 payload_status;
   rsp.parse(&payload_status);

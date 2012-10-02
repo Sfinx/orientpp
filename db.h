@@ -136,13 +136,16 @@ public:
     if (ec)
       throw boost::system::system_error(ec);
   }
-  string read_data() {
-    do_read();
-    size_t len = buf_.size();
-    if (verbose_)
-      app_log << "read " << len << " bytes";
+  void read_data(u8 *buf, size_t len) {
+    if (len > buf_.size())
+      do_read(len - buf_.size());
+    if (buf_.size() < len) { // ?!
+      app_log << "*** tcp_client(): read lost : " << buf_.size() << " from " << len;
+      len = buf_.size();
+    }
     const char *data = boost::asio::buffer_cast<const char*>(buf_.data());
     if (verbose_) {
+      app_log << "read " << len << " bytes";
       for (unsigned int i = 0; i < len; i++) {
        if (data[i] < 0x20)
          app_log << "r:" << i << ":0x" << hex << int(u8(data[i]));
@@ -150,21 +153,11 @@ public:
          app_log << "r:" << i << ":" << char(data[i]) << " | 0x" << hex << int(u8(data[i]));
       }
     }
-    buf_.consume(len);
-    return string(data, len);
-  }
-  int read_data(u8 *buf, size_t len) {
-    do_read(len);
-    const char *data = boost::asio::buffer_cast<const char*>(buf_.data());
-    if (len > buf_.size()) {
-      if (verbose_)
-        app_log << "tcp_client():read " << buf_.size() << " from " << len;
-      len = buf_.size();
-    }
     memcpy(buf, data, len);
     buf_.consume(len);
-    return len;
   }
+  size_t size() { return buf_.size(); }
+  void flush() { buf_.consume(buf_.size()); }
   void write_data(const string& data) {
     if (verbose_) {
       for (unsigned int i = 0; i < data.size(); i++) {
@@ -199,12 +192,14 @@ private:
 
 struct orientsrv_buf {
   string data;
+  size_t size() { return data.size(); }
+  const char *buf() { return data.c_str(); }
   orientsrv_buf() { }
   orientsrv_buf(string s) { append(s); }
   void append(orientsrv_buf &b) {
-    u32 len = b.data.size();
+    u32 len = b.size();
     append((s32)len);
-    data.append(b.data.c_str(), len);
+    data.append(b.buf(), len);
   }
   void append(s32 val) {
     val = htonl(val);
@@ -239,58 +234,78 @@ struct orientsession {
 };
 
 struct orientrsp {
- string data;
- u8 res;
- size_t pos;
- const u8 *buf() { return (u8 *)(data.c_str() + pos); }
- orientrsp(string v) : data(v), res(data[0]), pos(1) { }
- // step can be negative
- void seek(int step) { pos += step; if (pos > data.size()) pos = data.size(); }
+  tcp_client *tc;
+  orientsession *session;
+  s8 res;
+  ~orientrsp() {
+    if (tc->size())
+      app_log << "*** Ignoring " << tc->size() << " data of the response";
+    tc->flush();
+  }
+  orientrsp(tcp_client *tc_, orientsession *session_) : tc(tc_), session(session_), res(-1) { }
+  void check_result() {
+    tc->read_data((u8 *)&res, 1);
+    s32 session_id;
+    tc->read_data((u8 *)&session_id, 4);
+    session_id = ntohl(session_id);
+    if (session->connected && (session->id != session_id))
+      throw Exception("orientsrv::Error: Wrong Server Session ID");
+    if (res)
+      throw Exception("orientsrv::Error: " + parse_error());
+  }
   // long
-  bool parse(s64 *dst) { return parse((u64 *)dst); } 
-  bool parse(u64 *dst) {
-    memcpy(dst, buf(), 8);
+  void parse(s64 *dst) { parse((u64 *)dst); } 
+  void parse(u64 *dst) {
+    if (res)
+      check_result();
+    tc->read_data((u8 *)dst, 8);
     *dst = be64toh(*dst);
-    seek(8);
-    return true;
   }
   // int
-  bool parse(s32 *dst) { return parse((u32 *)dst); } 
-  bool parse(u32 *dst) {
-    memcpy(dst, buf(), 4);
+  void parse(s32 *dst) { parse((u32 *)dst); } 
+  void parse(u32 *dst) {
+    if (res)
+      check_result();
+    tc->read_data((u8 *)dst, 4);
     *dst = ntohl(*dst);
-    seek(4);
-    return true;
   }
   // short
-  bool parse(s16 *dst) { return parse((u16 *)dst); } 
-  bool parse(u16 *dst) {
-    memcpy(dst, buf(), 2);
+  void parse(s16 *dst) { parse((u16 *)dst); } 
+  void parse(u16 *dst) {
+    if (res)
+      check_result();
+    tc->read_data((u8 *)dst, 2);
     *dst = ntohs(*dst);
-    seek(2);
-    return true;
   }
   // byte
-  bool parse(u8 *dst) {
-    *dst = *(buf());
-    seek(1);
-    return true;
+  void parse(u8 *dst) {
+    if (res)
+      check_result();
+    tc->read_data((u8 *)dst, 1);
   }
   // string
-  bool parse(string *dst) {
+  void parse(string *dst) {
+    if (res)
+      check_result();
     u32 len;
     parse(&len);
-    *dst = string((const char*)buf(), len);
-    seek(len);
-    return true;
+    if (len && (len != 0xFFFFFFFF)) {
+      u8 buf[len];
+      tc->read_data(buf, len);
+      *dst = string((const char*)buf, len);
+    }
   }
   // bytes
-  bool parse(orientsrv_buf *dst) {
+  void parse(orientsrv_buf *dst) {
+    if (res)
+      check_result();
     u32 len;
     parse(&len);
-    dst->data = string((const char*)buf(), len);
-    seek(len);
-    return true;
+    if (len && (len != 0xFFFFFFFF)) { // WTF ? the NULL value must have 0 len, not -1
+      u8 buf[len];
+      tc->read_data(buf, len);
+      dst->data = string((const char*)buf, len);
+    }
   }
   string parse_error() {
     string err;
@@ -317,38 +332,20 @@ class orientsrv {
   u16 protocol;
   string url, user, pass, host, port;
   tcp_client tc;
-  orientrsp read_data(orientsession *s = 0) {
-    orientrsp rsp(tc.read_data());
-    s32 session_id;
-    rsp.parse(&session_id);
-    orientsession *curr_session = (s ? s : &session);
-    if (curr_session->connected && (session_id != curr_session->id)) {
-      string err = "orientsrv::Error: Wrong Server Session ID"; 
-      if (verbose())
-        app_log << err;
-      throw Exception(err);
-    }
-    if (rsp.res) {
-      string err = "orientsrv::Error: " + rsp.parse_error();
-      if (verbose())
-        app_log << err;
-      throw Exception(err);
-    }
-    return rsp;
-  }
   void init() {
     verbose(ORIENTPP_DEFAULT_VERBOSE_LEVEL);
     tc.timeout(ORIENTPP_DEFAULT_OPS_TIMEOUT);
     port = ORIENTDB_SERVER_PORT;
     protocol = 0;
   }
-  void send(u8 cmd, orientsrv_buf &r, orientsession *s = 0) {
+  orientrsp send(u8 cmd, orientsrv_buf &r, orientsession *s = 0) {
     string req((const char *)&cmd, 1);
     s32 sid = htonl(s ? s->id : session.id);
     req.append((const char *)&sid, sizeof(sid));
-    if (r.data.size())
-      req.append(r.data.c_str(), r.data.size());
+    if (r.size())
+      req.append(r.buf(), r.size());
     tc.write_data(req);
+    return orientrsp(&tc, s ? s : &session);
   }
   void error(string err) {
     if (verbose())
@@ -372,14 +369,15 @@ class orientsrv {
       throw Exception("orientsrv::shutdown(): Connect to server first");
     orientsrv_buf r(user);
     r.append(pass);
-    send(ORIENTDB_SHUTDOWN, r);
+    orientrsp rsp = send(ORIENTDB_SHUTDOWN, r);
     // wait for successfull responce
-    read_data();
+    rsp.check_result();
     throw Exception("orientsrv::shutdown(): Completed");
   }
   orientsrv() { init(); }
   ~orientsrv();
   friend class orientdb;
+  friend class orientrsp;
 };
 
 class orientdb {
@@ -392,9 +390,8 @@ class orientdb {
   u64 count();
   u64 size();
   void close();
-  orientrsp read_data(orientsession *s = 0) { return srv->read_data(s ? s : &session); }
-  void send(u8 cmd) { orientsrv_buf dummy; srv->send(cmd, dummy, &session); }
-  void send(u8 cmd, orientsrv_buf &r, orientsession *s = 0) { srv->send(cmd, r, s ? s : &session); }
+  orientrsp send(u8 cmd) { orientsrv_buf dummy; return srv->send(cmd, dummy, &session); }
+  orientrsp send(u8 cmd, orientsrv_buf &r, orientsession *s = 0) { return srv->send(cmd, r, s ? s : &session); }
   void error(string err) { srv->error(err); }
   int verbose() { return srv->verbose(); }
   void verbose(int v) { srv->verbose(v); }
@@ -418,6 +415,11 @@ struct orient_record_t {
     version(version_),
     content(content_) { }
   orient_record_t() : type(ORIENT_NULL_RECORD) { }
+  string rid() {
+    stringstream ss;
+    ss << "#" << id << ":" << pos;
+    return ss.str();
+  }
   operator string() { // parse record to string
     stringstream ss;
     switch (type) {

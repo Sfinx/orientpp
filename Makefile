@@ -44,4 +44,7 @@ dcp:
 	@git push ssh://git@voip/home/git/orientpp
 	@./scripts/version.sh
 
+test:
+	@$(EXE) 2 > tests/log.txt 2>&1; cat tests/log.txt
+	
 -include $(wildcard *.d)
