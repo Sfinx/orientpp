@@ -139,10 +139,6 @@ public:
   void read_data(u8 *buf, size_t len) {
     if (len > buf_.size())
       do_read(len - buf_.size());
-    if (buf_.size() < len) { // ?!
-      app_log << "*** tcp_client(): read lost : " << buf_.size() << " from " << len;
-      len = buf_.size();
-    }
     const char *data = boost::asio::buffer_cast<const char*>(buf_.data());
     if (verbose_) {
       app_log << "read " << len << " bytes";
@@ -239,7 +235,7 @@ struct orientrsp {
   s8 res;
   ~orientrsp() {
     if (tc->size())
-      app_log << "*** Ignoring " << tc->size() << " data of the response";
+      app_log << "*** Ignoring " << tc->size() << " non-parsed bytes of the response";
     tc->flush();
   }
   orientrsp(tcp_client *tc_, orientsession *session_) : tc(tc_), session(session_), res(-1) { }

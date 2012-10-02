@@ -150,16 +150,18 @@ void orientdb::open(string db_, int db_type_, string u, string p)
    // теоретически нужно бы эту всю хрень куда-то сохранять, шобы потом красиво рекорды выводить
    // ...
  }
+ if (real_num_of_clusters == num_of_clusters) {
+   // read (cluster-config:bytes)
+   orientsrv_buf cluster_config;
+   rsp.parse(&cluster_config);
+   if (cluster_config.size())
+     app_log << "TODO: parse cluster_config";
+ }
  if (verbose() > 1) {
    if (real_num_of_clusters != num_of_clusters)
      app_log << "DB has " << real_num_of_clusters << " clusters [reported " << num_of_clusters << "]";
    else {
      app_log << "DB has " << real_num_of_clusters << " clusters";
-     // read (cluster-config:bytes)
-     orientsrv_buf cluster_config;
-     rsp.parse(&cluster_config);
-     if (cluster_config.size())
-       app_log << "TODO: parse cluster_config";
    }
  }
 }

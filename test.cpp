@@ -45,9 +45,12 @@ void OrientDBTest()
  db.open("test", AS_GRAPH_DB, "admin", "admin");
  app_log << "DB size: " << db.size();
  app_log << "DB records count: " << db.count();
+
  orientquery q(db);
+#ifdef TEST_1
  q << "select * from ouser";
  dump_result(q.execute(AS_SQL));
+#endif
 
  q << "drop class Slices";
  q.execute(AS_SQL);
@@ -105,7 +108,6 @@ void OrientDBTest()
  // db.verbose(2);
  q << "traverse * from V"; // << string(root_slice);
  orientresult_ptr res = q.execute(AS_SQL);
- app_log << res->records.size();
  dump_result(res);
 
  orienttree sfinx_objects_tree(res /*, root_slice */);
