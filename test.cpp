@@ -5,29 +5,81 @@
 
 using namespace OrientPP;
 
-// orientclass Slice(slice_class_id);
 class orienttree {
+  orient_record_t root;
+  json_spirit::wmObject tree;
+  map <string, json_spirit::wmObject> rid2slice;
  public:
-  // assuming that root record class is Vertex, any other class is edge
-  orienttree(orientresult_ptr res /*, orient_record_t root */) {
-    app_log << "Dumping tree";
-    // orient_record_t root = res->records[0];
+  // loosely assuming that first record is root record, class is Vertex, any other class is edge
+  orienttree(orientresult_ptr res) : orienttree(res, res->records[0]) { }
+  orienttree(orientresult_ptr res, orient_record_t root_) : root(root_) {
+    app_log << "Creating tree";
+    vector <orient_record_t> links;
     for (uint i = 0; i < res->records.size(); i++) {
-      bool link = (res->records[i].rid.id == 12); 
+      bool link = (res->records[i].rid.id != root.rid.id); 
       string type = link ? "link" : "node";
-      if (!i)
-        type = "root " + type;
-      if (link)
+      if (link) {
+        links.push_back(res->records[i]);
         app_log << type << ": " << string(res->records[i].rid) << ", from: "
           << string(res->records[i].get_property("in")) << ", to: "
           << string(res->records[i].get_property("out"));
-      else
+      } else {
+        json_spirit::wmObject slice;
+        fill_node(slice, res->records[i]);
+        // add slice to map
+        string rid(string(res->records[i].rid).c_str() + 1);
+        rid2slice.insert(pair<string, json_spirit::wmObject>(rid, slice));
+        if (!i)
+          type = "root " + type;
         app_log << type << ": " << string(res->records[i].rid);
+      }
+    }
+    app_log << "Processing " << links.size() << " links";
+    for (uint i = 0; i < links.size(); i++) {
+      app_log << "adding " << string(links[i].get_property("out")) << " to "
+        << string(links[i].get_property("in"));
+      json_spirit::wmObject &in = get_node(links[i].get_property("in")),
+        &out = get_node(links[i].get_property("out"));
+      // connect slice in (child) to slice out (parent)
+      add_child(in, out);
+    }
+    string root_rid(string(root.rid).c_str() + 1);
+    json_spirit::wmObject &root_slice = get_node_str(root_rid);
+    tree[L"slices"] = root_slice;
+  }
+  json_spirit::wmObject &get_node_str(string &rid) {
+    map <string, json_spirit::wmObject>::iterator it = rid2slice.find(rid);
+    if (it == rid2slice.end())
+      throw Exception("Node absent: " + rid);
+    return it->second;
+  }
+  json_spirit::wmObject &get_node(property_t p) {
+    if (p.type != ORIENT_RECORD_TYPE_LINK)
+      throw Exception("Wrong node type: " + string(p));
+    map <string, json_spirit::wmObject>::iterator it = rid2slice.find(string(p));
+    if (it == rid2slice.end())
+      throw Exception("Node absent: " + string(p));
+    return it->second;
+  }    
+  void fill_node(json_spirit::wmObject &obj, orient_record_t &rec) {
+    for (property_iterator it = rec.properties.begin(); it != rec.properties.end(); it++) {
+      property_t p = it->second;
+      if (p.name == "in" || p.name == "out")
+        continue;
+      json_add_str(obj, p.name, string(p));
     }
   }
-  string tojson() {
-    return "";
+  void add_child(json_spirit::wmObject &parent, json_spirit::wmObject &child) {
+    // find children array in parent
+    json_spirit::wmArray children;
+    // if not found create it
+    bool exists = json_get(parent, "children", children);
+    app_log << "children : " << exists << ", with size " << children.size();
+    // add child
+    children.push_back(child);
+    parent[L"children"] = children;
   }
+  string tojson() { return json_write(tree); }
 };
 
 void dump_result(orientresult_ptr res)

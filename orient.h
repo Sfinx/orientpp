@@ -36,6 +36,6 @@ string time_str(time_t now = time(0));
 }; // namespace
 
 #include "db.h"
-//#include "json.h"
+#include "json.h"
 
 #endif 
