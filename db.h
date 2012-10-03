@@ -46,6 +46,7 @@ enum {
 #define ORIENTPP_DRIVER_VERSION		"v0.1"
 #define ORIENTPP_DRIVER_PROTO_VERSION	0xc
 #define ORIENTDB_SERVER_PORT		"2424"
+#define ORIENT_NULL			0xFFFFFFFF
 
 enum { // binary protocol commands
   ORIENTDB_SHUTDOWN = 1,
@@ -194,8 +195,13 @@ struct orientsrv_buf {
   orientsrv_buf(string s) { append(s); }
   void append(orientsrv_buf &b) {
     u32 len = b.size();
-    append((s32)len);
-    data.append(b.buf(), len);
+    if (len) {
+      append((s32)len);
+      data.append(b.buf(), len);
+    } else {
+      len = ORIENT_NULL;
+      append((s32)len);
+    }
   }
   void append(s32 val) {
     val = htonl(val);
@@ -218,8 +224,13 @@ struct orientsrv_buf {
   void append(string s) {
     string quoted(s);
     u32 len = quoted.size();
-    append((s32)len);
-    data.append(quoted.c_str(), len);
+    if (len) {
+      append((s32)len);
+      data.append(quoted.c_str(), len);
+    } else {
+      len = ORIENT_NULL;
+      append((s32)len);
+    }
   }
 };
 
@@ -240,6 +251,8 @@ struct orientrsp {
   }
   orientrsp(tcp_client *tc_, orientsession *session_) : tc(tc_), session(session_), res(-1) { }
   void check_result() {
+    if (res >= 0)
+      return;
     tc->read_data((u8 *)&res, 1);
     s32 session_id;
     tc->read_data((u8 *)&session_id, 4);
@@ -252,40 +265,35 @@ struct orientrsp {
   // long
   void parse(s64 *dst) { parse((u64 *)dst); } 
   void parse(u64 *dst) {
-    if (res)
-      check_result();
+    check_result();
     tc->read_data((u8 *)dst, 8);
     *dst = be64toh(*dst);
   }
   // int
   void parse(s32 *dst) { parse((u32 *)dst); } 
   void parse(u32 *dst) {
-    if (res)
-      check_result();
+    check_result();
     tc->read_data((u8 *)dst, 4);
     *dst = ntohl(*dst);
   }
   // short
   void parse(s16 *dst) { parse((u16 *)dst); } 
   void parse(u16 *dst) {
-    if (res)
-      check_result();
+    check_result();
     tc->read_data((u8 *)dst, 2);
     *dst = ntohs(*dst);
   }
   // byte
   void parse(u8 *dst) {
-    if (res)
-      check_result();
+    check_result();
     tc->read_data((u8 *)dst, 1);
   }
   // string
   void parse(string *dst) {
-    if (res)
-      check_result();
+    check_result();
     u32 len;
     parse(&len);
-    if (len && (len != 0xFFFFFFFF)) {
+    if (len && (len != ORIENT_NULL)) {
       u8 buf[len];
       tc->read_data(buf, len);
       *dst = string((const char*)buf, len);
@@ -293,11 +301,10 @@ struct orientrsp {
   }
   // bytes
   void parse(orientsrv_buf *dst) {
-    if (res)
-      check_result();
+    check_result();
     u32 len;
     parse(&len);
-    if (len && (len != 0xFFFFFFFF)) { // WTF ? the NULL value must have 0 len, not -1
+    if (len && (len != ORIENT_NULL)) { // WTF ? the NULL value must have 0 len, not -1
       u8 buf[len];
       tc->read_data(buf, len);
       dst->data = string((const char*)buf, len);
