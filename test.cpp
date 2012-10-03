@@ -8,11 +8,21 @@ using namespace OrientPP;
 // orientclass Slice(slice_class_id);
 class orienttree {
  public:
+  // assuming that root record class is Vertex, any other class is edge
   orienttree(orientresult_ptr res /*, orient_record_t root */) {
     app_log << "Dumping tree";
     // orient_record_t root = res->records[0];
     for (uint i = 0; i < res->records.size(); i++) {
-      app_log << res->records[i].rid();
+      bool link = (res->records[i].rid.id == 12); 
+      string type = link ? "link" : "node";
+      if (!i)
+        type = "root " + type;
+      if (link)
+        app_log << type << ": " << string(res->records[i].rid) << ", from: "
+          << string(res->records[i].get_property("in")) << ", to: "
+          << string(res->records[i].get_property("out"));
+      else
+        app_log << type << ": " << string(res->records[i].rid);
     }
   }
   string tojson() {
@@ -25,7 +35,18 @@ void dump_result(orientresult_ptr res)
  app_log << "Result has " << res->records.size() << " records";
  for (u32 r = 0; r < res->records.size(); r++) {
    stringstream ss;
-   ss << "#" << r << " " << string(res->records[r]);
+   if (res->records[r].rid.valid) {
+     if (res->records[r].is_document()) {
+       ss << "#" << r << " " << string(res->records[r].rid) << " class:" << res->records[r].classof();
+       for (property_iterator it = res->records[r].properties.begin();
+         it != res->records[r].properties.end(); it++) {
+           property_t p = it->second;
+           ss << ", t: " << p.type2str() << ", n:" << p.name << ", v:" << string(p);
+       }
+     } else
+       ss << "#" << r << " " << string(res->records[r].rid) << " " << string(res->records[r]);
+   } else
+     ss << "#" << r << " " << string(res->records[r]);
    app_log << ss.str();
    ss.str("");
  }
@@ -38,21 +59,27 @@ void OrientDBTest()
 #if TEST_SHUTDOWN
  server.shutdown();
 #endif
+#if TEST_DROP
  if (server.dbexists("test"))
    server.dropdb("test");
  server.createdb("test", AS_GRAPH_DB, DB_LOCAL_STORAGE);
+#endif
+ if (!server.dbexists("test"))
+   server.createdb("test", AS_GRAPH_DB, DB_LOCAL_STORAGE);
  orientdb db(server);
  db.open("test", AS_GRAPH_DB, "admin", "admin");
  app_log << "DB size: " << db.size();
  app_log << "DB records count: " << db.count();
 
  orientquery q(db);
-#ifdef TEST_1
+#ifdef TEST_SELECT
  q << "select * from ouser";
  dump_result(q.execute(AS_SQL));
 #endif
 
  q << "drop class Slices";
+ q.execute(AS_SQL);
+ q << "drop class connected_to";
  q.execute(AS_SQL);
 
  q << "create class Slices extends V";

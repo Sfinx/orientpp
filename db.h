@@ -403,38 +403,244 @@ class orientdb {
   ~orientdb();
 };
 
-struct orient_record_t {
+enum {
+ ORIENT_RECORD_TYPE_UNKNOWN = 0,
+ ORIENT_RECORD_TYPE_BOOL,
+ ORIENT_RECORD_TYPE_BYTE,
+ ORIENT_RECORD_TYPE_SHORT,
+ ORIENT_RECORD_TYPE_INT,
+ ORIENT_RECORD_TYPE_LONG,
+ ORIENT_RECORD_TYPE_STRING,
+ ORIENT_RECORD_TYPE_BINARY,
+ ORIENT_RECORD_TYPE_FLOAT,
+ ORIENT_RECORD_TYPE_DOUBLE,
+ ORIENT_RECORD_TYPE_BIGDECIMAL,
+ ORIENT_RECORD_TYPE_DATE,
+ ORIENT_RECORD_TYPE_DATETIME,
+ ORIENT_RECORD_TYPE_LINK,
+ ORIENT_RECORD_TYPE_LINKSET,
+ ORIENT_RECORD_TYPE_EMBEDDED,
+ ORIENT_RECORD_TYPE_COLLECTION,
+ ORIENT_RECORD_TYPE_MAP,
+ ORIENT_RECORD_TYPE_NULL
+};
+
+// рекурсия при обходе => use boost:graph
+struct property_t {
+  string name, data;
   u8 type;
+  string type2str() {
+    switch (type) {
+      case ORIENT_RECORD_TYPE_BOOL:
+        return "bool";
+      case ORIENT_RECORD_TYPE_BYTE:
+        return "byte";
+      case ORIENT_RECORD_TYPE_SHORT:
+        return "short";
+      case ORIENT_RECORD_TYPE_INT:
+        return "int";
+      case ORIENT_RECORD_TYPE_LONG:
+        return "long";
+      case ORIENT_RECORD_TYPE_STRING:
+        return "string";
+      case ORIENT_RECORD_TYPE_BINARY:
+        return "binary";
+      case ORIENT_RECORD_TYPE_FLOAT:
+        return "float";
+      case ORIENT_RECORD_TYPE_DOUBLE:
+        return "double";
+      case ORIENT_RECORD_TYPE_BIGDECIMAL:
+        return "bigdecimal";
+      case ORIENT_RECORD_TYPE_DATE:
+        return "date";
+      case ORIENT_RECORD_TYPE_DATETIME:
+        return "datetime";
+      case ORIENT_RECORD_TYPE_LINK:
+        return "link";
+      case ORIENT_RECORD_TYPE_LINKSET:
+        return "linkset";
+      case ORIENT_RECORD_TYPE_EMBEDDED:
+        return "embedded";
+      case ORIENT_RECORD_TYPE_COLLECTION:
+        return "collection";
+      case ORIENT_RECORD_TYPE_MAP:
+        return "map";
+      case ORIENT_RECORD_TYPE_NULL:
+        return "null";
+    }
+      return "unknown";
+  }
+  // union val { ... }
+  // vector <rid_t> links;
+  vector <property_t> embedded; // for arrays, maps, etc.
+  property_t(string n) : name(n), type(ORIENT_RECORD_TYPE_UNKNOWN) { }
+  property_t() : type(ORIENT_RECORD_TYPE_UNKNOWN) { }
+  operator string () {
+    return data;
+  }
+  // TODO: operator bool, float, ...
+};
+
+typedef map <string, property_t>::iterator property_iterator;
+
+struct rid_t {
   s16 id;
   s64 pos;
-  s32 version;
-  string content;
-  orient_record_t(string &serialized) : type(ORIENT_SERIALIZED_RECORD), content(serialized) { }
-  orient_record_t(s16 id_, s64 pos_) : type(ORIENT_RECORD_ID), id(id_), pos(pos_) { }
-  orient_record_t(u8 type_, s16 id_, s64 pos_, s32 version_, string &content_) :
-    type(type_),
-    id(id_),
-    pos(pos_),
-    version(version_),
-    content(content_) { }
-  orient_record_t() : type(ORIENT_NULL_RECORD) { }
-  string rid() {
+  bool valid;
+  rid_t () : id(-1), pos(-1), valid(false) { }
+  rid_t (s16 id_, s64 pos_) : id(id_), pos(pos_), valid(true) { }
+  operator string() {
+    if (!valid)
+      return "";
     stringstream ss;
     ss << "#" << id << ":" << pos;
     return ss.str();
   }
-  operator string() { // parse record to string
+};
+
+struct orient_record_t {
+  u8 type;
+  rid_t rid;
+  s64 pos;
+  s32 version;
+  string content;
+  bool parsed;
+  string class_;
+  // and what if property can be without the name ?
+  // replace with vector <property_t> ?
+  map <string, property_t> properties;
+  orient_record_t(string &serialized) :
+    type(ORIENT_SERIALIZED_RECORD), content(serialized), parsed(false) { }
+  orient_record_t(s16 id_, s64 pos_) :
+    type(ORIENT_RECORD_ID), rid(id_, pos_), parsed(false) { }
+  orient_record_t(u8 type_, s16 id_, s64 pos_, s32 version_, string &content_) :
+    type(type_),
+    rid(id_, pos_),
+    version(version_),
+    content(content_),
+    parsed(false) { }
+  orient_record_t() : type(ORIENT_NULL_RECORD) { }
+  bool has_property(string n) {
+    parse();
+    property_iterator it = properties.find(n);
+    return (it == properties.end()) ? false : true;
+  }
+  property_t get_property(string n) {
+    parse();
+    property_iterator it = properties.find(n);
+    if (it == properties.end())
+      throw Exception("No such property: " + n);
+    return it->second;
+  }
+  size_t add_property(size_t pos, property_t &p) {
+    size_t collection_start;
+    switch (content[pos]) {
+      case '"':
+        // string 
+        while ((pos < (content.size() - 1)) && content[++pos] != '"') {
+          if (content[pos] == '\\')
+            pos++;
+          p.data += content[pos];
+        }
+        pos++;
+        p.type = ORIENT_RECORD_TYPE_STRING;
+        break;
+      case '#':
+        // link
+        pos++;
+        while ((pos < content.size()) && content[pos] != ',' && content[pos] != ')'
+          && content[pos] != ']' && content[pos] != '*') {
+            if ((content[pos] != ':') && !(content[pos] >= '0' && content[pos] <= '9'))
+              throw Exception("add_property(): Invalid link data: " + itoa(content[pos]));
+            p.data += content[pos++];
+        }
+        p.type = ORIENT_RECORD_TYPE_LINK;
+        break;
+      case 't':
+      case 'f':
+        // bool: true or false
+        p.type = ORIENT_RECORD_TYPE_BOOL;
+        p.data = string(content.c_str() + pos, (content[pos] == 't') ? 4 : 5);
+        pos += ((content[pos] == 't') ? 4 : 5);
+        break;
+      case '[':
+        // array
+        pos++;
+        collection_start = pos;
+        while ((pos < content.size() - 1) && content[pos] != ',' && content[pos] != ')'
+          && content[pos] != ']' && content[pos] != '*') {
+            property_t emb;
+            pos = add_property(pos, emb);
+            p.embedded.push_back(emb);
+        }
+        p.type = ORIENT_RECORD_TYPE_COLLECTION;
+        p.data = string(content.c_str() + collection_start, pos - collection_start);
+        if (content[pos] == ']')
+          pos++;
+        break;
+      case '{':
+        // map
+      case '(':
+        // embedded
+      case '*':
+      case ')':
+      case ']':
+      case ',':
+        // parse error
+      default:
+        // plain
+        throw Exception("add_property(): Unimplemented type: " + itoa(content[pos]));
+    }
+    if (content[pos] == ',')
+      pos++;
+    return pos;
+  }
+  void parse() {
+    if (parsed || !is_document())
+      return;
+    size_t curr_pos = 0;
+    string t;
+    // app_log << "full: " << content;
+    // parse property
+    do {
+      // try parse class
+      if (!properties.size() && !class_.size() && content[curr_pos] == '@') {
+        class_ = t;
+        t.clear();
+        curr_pos++;
+      }
+      // parse value
+      if (content[curr_pos] == ':') {
+        curr_pos++;
+        property_t p(t);
+        // app_log << "addin prop n: " << p.name << " pos: " << curr_pos;
+        curr_pos = add_property(curr_pos, p);
+        properties.insert(pair<string, property_t>(p.name, p));
+        t.clear();
+      } else if (content[curr_pos] != ')' && content[curr_pos] != ']' && content[curr_pos] != ',' &&
+          content[curr_pos] != '*')
+            t += content[curr_pos++]; // or collect name
+    } while ((curr_pos < content.size()) &&
+        content[curr_pos -1] != ')' && content[curr_pos -1] != '*');
+    parsed = true;
+  }
+  string classof() {
+    parse();
+    return class_;
+  }
+  bool is_document() { return (type == ORIENT_DOCUMENT_RECORD); }
+  operator string() { // parse record to generic string
     stringstream ss;
     switch (type) {
       case ORIENT_SERIALIZED_RECORD:
       case ORIENT_DOCUMENT_RECORD:
         return content;
       case ORIENT_RECORD_ID:
-        ss << "#" << id << ":" << pos;
+        ss << "#" << rid.id << ":" << rid.pos;
         return ss.str();
       case ORIENT_NULL_RECORD:
       default:
-        return "";
+        return "null";
     }
   }
 };
