@@ -489,6 +489,13 @@ struct rid_t {
   bool valid;
   rid_t () : id(-1), pos(-1), valid(false) { }
   rid_t (s16 id_, s64 pos_) : id(id_), pos(pos_), valid(true) { }
+  string str() {
+    if (!valid)
+      return "";
+    stringstream ss;
+    ss << id << ":" << pos;
+    return ss.str();
+  }
   operator string() {
     if (!valid)
       return "";

@@ -144,7 +144,7 @@ void orientdb::open(string db_, int db_type_, string u, string p)
      error("Too big cluster number !");
    rsp.parse(&cl_type);
    rsp.parse(&cl_data_segment_id);
-   if (verbose() > 1)
+//   if (verbose() > 1)
      app_log << "id: " << cl_id << ", name: " << cl_name << ", type: " << cl_type
        << ", data_segment_id :" << cl_data_segment_id;
    // теоретически нужно бы эту всю хрень куда-то сохранять, шобы потом красиво рекорды выводить

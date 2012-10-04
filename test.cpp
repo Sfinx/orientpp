@@ -7,15 +7,19 @@ using namespace OrientPP;
 
 class orienttree {
   orient_record_t root;
+  int link_class_id;
   json_spirit::wmObject tree;
   map <string, json_spirit::wmObject> rid2slice;
+  bool isnode(orient_record_t &r) { return (r.rid.id != link_class_id); }
  public:
   // loosely assuming that first record is root record, class is Vertex, any other class is edge
-  orienttree(orientresult_ptr res) : orienttree(res, res->records[0]) { }
-  orienttree(orientresult_ptr res, orient_record_t root_) : root(root_) {
+  orienttree(orientresult_ptr res, int link_class_id_) :
+    orienttree(res, res->records[0], link_class_id_) { }
+  orienttree(orientresult_ptr res, orient_record_t root_, int link_class_id_) :
+   root(root_), link_class_id(link_class_id_) {
     // строим дерево в направлении корня
     // как бы это все сделать за один проход ?
-    app_log << "Creating tree";
+    app_log << "Creating tree with link id " << link_class_id;
     vector <orient_record_t> links;
     uint vertexes = 0, edges = 0;
 #ifdef DO_NOT_WORK_WITH_CURRENT_JSON_LIB
@@ -23,9 +27,8 @@ class orienttree {
 #endif
     uint r = res->records.size();
     while (r--) {
-      bool link = (res->records[r].rid.id != root.rid.id); 
-      string type = link ? "link" : "node";
-      if (link) {
+      string type = isnode(res->records[r]) ? "node" : "link";
+      if (!isnode(res->records[r])) {
         edges++;
         links.push_back(res->records[r]);
         // app_log << type << ": " << string(res->records[r].rid) << ", from: "
@@ -36,8 +39,7 @@ class orienttree {
         json_spirit::wmObject slice;
         fill_node(slice, res->records[r]);
         // add slice to map
-        string rid(string(res->records[r].rid).c_str() + 1);
-        rid2slice.insert(pair<string, json_spirit::wmObject>(rid, slice));
+        rid2slice.insert(pair<string, json_spirit::wmObject>(res->records[r].rid.str(), slice));
         if (!r)
           type = "root " + type;
         // app_log << type << ": " << string(res->records[r].rid);
@@ -70,9 +72,7 @@ class orienttree {
       if (links.size())
         throw Exception("Unconnected links remains: " + itoa(links.size()));
     }
-    string root_rid(string(root.rid).c_str() + 1);
-    json_spirit::wmObject &root_slice = get_node_str(root_rid);
-    tree[L"slices"] = root_slice;
+    tree[L"slices"] = get_node(root.rid.str());
   }
   bool try_connect_link(orient_record_t &link) {
     if (node_exists(link.get_property("in")) && node_exists(link.get_property("out"))) {
@@ -84,7 +84,7 @@ class orienttree {
     }
     return false;
   }
-  json_spirit::wmObject &get_node_str(string &rid) {
+  json_spirit::wmObject &get_node(string rid) {
     map <string, json_spirit::wmObject>::iterator it = rid2slice.find(rid);
     if (it == rid2slice.end())
       throw Exception("Node absent: " + rid);
@@ -107,6 +107,7 @@ class orienttree {
     return true;
   }    
   void fill_node(json_spirit::wmObject &obj, orient_record_t &rec) {
+    json_add_str(obj, "rid", string(rec.rid));
     for (property_iterator it = rec.properties.begin(); it != rec.properties.end(); it++) {
       property_t p = it->second;
       if (p.name == "in" || p.name == "out")
@@ -145,6 +146,27 @@ void dump_result(orientresult_ptr res)
  }
 }
 
+orient_record_t create_slice(orientquery &q, string name, string description)
+{
+ q << "create vertex Slices set name ='" << name << "', description ='" << description << "'";
+ dump_result(q.execute(AS_SQL));
+ return q.insert_id;
+}
+
+orient_record_t create_note(orientquery &q, string title, string url)
+{
+ q << "create vertex Notes set title ='" << title << "', url ='" << url << "'";
+ dump_result(q.execute(AS_SQL));
+ return q.insert_id;
+}
+
+orient_record_t connect_records(orientquery &q, orient_record_t from, orient_record_t &to)
+{
+ q << "create edge connected_to from " << string(from) << " to " << string(to);
+ dump_result(q.execute(AS_SQL));
+ return q.insert_id;
+}
+
 void OrientDBTest()
 {
  app_log << "OrientDB test: Start";
@@ -157,10 +179,10 @@ void OrientDBTest()
    server.dropdb("test");
  server.createdb("test", AS_GRAPH_DB, DB_LOCAL_STORAGE);
 #endif
- if (!server.dbexists("test"))
-   server.createdb("test", AS_GRAPH_DB, DB_LOCAL_STORAGE);
+// if (!server.dbexists("test"))
+//   server.createdb("test", AS_GRAPH_DB, DB_LOCAL_STORAGE);
  orientdb db(server);
- db.open("test", AS_GRAPH_DB, "admin", "admin");
+ db.open("test2", AS_GRAPH_DB, "admin", "admin");
  app_log << "DB size: " << db.size();
  app_log << "DB records count: " << db.count();
 
@@ -169,8 +191,10 @@ void OrientDBTest()
  q << "select * from ouser";
  dump_result(q.execute(AS_SQL));
 #endif
-
+ return;
  q << "drop class Slices";
+ q.execute(AS_SQL);
+ q << "drop class Notes";
  q.execute(AS_SQL);
  q << "drop class connected_to";
  q.execute(AS_SQL);
@@ -181,56 +205,40 @@ void OrientDBTest()
  dump_result(q.execute(AS_SQL));
  q << "create property Slices.description STRING";
  dump_result(q.execute(AS_SQL));
+
+ q << "create class Notes extends V";
+ dump_result(q.execute(AS_SQL));
+ q << "create property Notes.title STRING";
+ dump_result(q.execute(AS_SQL));
+ q << "create property Notes.url STRING";
+ dump_result(q.execute(AS_SQL));
+
  q << "create class connected_to extends E";
  dump_result(q.execute(AS_SQL));
  
- q << "create vertex Slices create vertex Slices set name='Dao', description='Root'";
- dump_result(q.execute(AS_SQL));
- orient_record_t root_slice = q.insert_id;
- q << "create vertex Slices set name='Texts', description='Texts, Docs'";
- dump_result(q.execute(AS_SQL));
- orient_record_t texts_slice = q.insert_id;
- q << "create edge connected_to from " << string(texts_slice) << " to " << string(root_slice);
- dump_result(q.execute(AS_SQL));
- q << "create vertex Slices set name='Books', description='Books'";
- dump_result(q.execute(AS_SQL));
- q << "create edge connected_to from " << string(q.insert_id) << " to " << string(texts_slice);
- dump_result(q.execute(AS_SQL));
+ orient_record_t root_slice = create_slice(q, "Dao", "Root");
+ orient_record_t texts_slice = create_slice(q, "Texts", "Texts, Docs");
+ orient_record_t edge = connect_records(q, texts_slice, root_slice);
+ int link_class_id = edge.rid.id;
+ connect_records(q, create_slice(q, "EBooks", "Books in digital form"), texts_slice);
+ orient_record_t programming_slice = create_slice(q, "Programming", "All about programming");
+ connect_records(q, programming_slice, root_slice);
+ orient_record_t languages_slice  = create_slice(q, "Languages", "Programming languages");
+ connect_records(q, languages_slice, programming_slice);
+ connect_records(q, create_slice(q, "C", "C language"), languages_slice);
+ connect_records(q, create_slice(q, "C++", "C++ language"), languages_slice);
+ orient_record_t images_slice = create_slice(q, "Images", "Pictures"); 
+ connect_records(q, images_slice, root_slice);
+ connect_records(q, create_slice(q, "Nature", "Pics of nature"), images_slice);
 
- q << "create vertex Slices set name='Programming', description='All about programming'";
- dump_result(q.execute(AS_SQL));
- orient_record_t programming_slice = q.insert_id;
- q << "create edge connected_to from " << string(q.insert_id) << " to " << string(root_slice);
- dump_result(q.execute(AS_SQL));
- q << "create vertex Slices set name='Languages', description='All languages'";
- dump_result(q.execute(AS_SQL));
- orient_record_t languages_slice = q.insert_id;
- q << "create edge connected_to from " << string(q.insert_id) << " to " << string(programming_slice);
- dump_result(q.execute(AS_SQL));
- q << "create vertex Slices set name='C', description='C language'";
- dump_result(q.execute(AS_SQL));
- q << "create edge connected_to from " << string(q.insert_id) << " to " << string(languages_slice);
- dump_result(q.execute(AS_SQL));
- q << "create vertex Slices set name='C++', description='C++ language'";
- dump_result(q.execute(AS_SQL));
- q << "create edge connected_to from " << string(q.insert_id) << " to " << string(languages_slice);
- dump_result(q.execute(AS_SQL));
- 
- q << "create vertex Slices set name='Images', description='Pictures'";
- dump_result(q.execute(AS_SQL));
- orient_record_t images_slice = q.insert_id;
- q << "create edge connected_to from " << string(q.insert_id) << " to " << string(root_slice);
- dump_result(q.execute(AS_SQL));
- q << "create vertex Slices set name='Nature', description='Pics of nature'";
- dump_result(q.execute(AS_SQL));
- q << "create edge connected_to from " << string(q.insert_id) << " to " << string(images_slice); 
- dump_result(q.execute(AS_SQL));
- // db.verbose(2);
+ orient_record_t note = create_note(q, "Memento Mori", "What are we living for ?");
+ connect_records(q, note, texts_slice);
+
  q << "traverse * from V"; // << string(root_slice);
  orientresult_ptr res = q.execute(AS_SQL);
  dump_result(res);
 
- orienttree sfinx_objects_tree(res /*, root_slice */);
+ orienttree sfinx_objects_tree(res /*, root_slice */ , link_class_id);
  app_log << "JSON: " << sfinx_objects_tree.tojson();
 
 #ifdef WHEN_JS_SOMETIME_WILL_WORK_IN_SNAPSHOT
