@@ -13,33 +13,33 @@ class orienttree {
   // loosely assuming that first record is root record, class is Vertex, any other class is edge
   orienttree(orientresult_ptr res) : orienttree(res, res->records[0]) { }
   orienttree(orientresult_ptr res, orient_record_t root_) : root(root_) {
+    // строим дерево в направлении корня
     app_log << "Creating tree";
     vector <orient_record_t> links;
-    for (uint i = 0; i < res->records.size(); i++) {
-      bool link = (res->records[i].rid.id != root.rid.id); 
+    int r = res->records.size();
+    while (r--) {
+      bool link = (res->records[r].rid.id != root.rid.id); 
       string type = link ? "link" : "node";
       if (link) {
-        links.push_back(res->records[i]);
-        app_log << type << ": " << string(res->records[i].rid) << ", from: "
-          << string(res->records[i].get_property("in")) << ", to: "
-          << string(res->records[i].get_property("out"));
+        links.push_back(res->records[r]);
+        app_log << type << ": " << string(res->records[r].rid) << ", from: "
+          << string(res->records[r].get_property("in")) << ", to: "
+          << string(res->records[r].get_property("out"));
       } else {
         json_spirit::wmObject slice;
-        fill_node(slice, res->records[i]);
+        fill_node(slice, res->records[r]);
         // add slice to map
-        string rid(string(res->records[i].rid).c_str() + 1);
+        string rid(string(res->records[r].rid).c_str() + 1);
         rid2slice.insert(pair<string, json_spirit::wmObject>(rid, slice));
-        if (!i)
+        if (!r)
           type = "root " + type;
-        app_log << type << ": " << string(res->records[i].rid);
+        app_log << type << ": " << string(res->records[r].rid);
       }
     }
     app_log << "Processing " << links.size() << " links";
-    for (uint i = 0; i < links.size(); i++) {
-      app_log << "adding " << string(links[i].get_property("out")) << " to "
-        << string(links[i].get_property("in"));
-      json_spirit::wmObject &in = get_node(links[i].get_property("in")),
-        &out = get_node(links[i].get_property("out"));
+    for (uint l = 0; l < links.size(); l++) {
+      json_spirit::wmObject &in = get_node(links[l].get_property("in")),
+        &out = get_node(links[l].get_property("out"));
       // connect slice in (child) to slice out (parent)
       add_child(in, out);
     }
@@ -70,12 +70,8 @@ class orienttree {
     }
   }
   void add_child(json_spirit::wmObject &parent, json_spirit::wmObject &child) {
-    // find children array in parent
     json_spirit::wmArray children;
-    // if not found create it
-    bool exists = json_get(parent, "children", children);
-    app_log << "children : " << exists << ", with size " << children.size();
-    // add child
+    json_get(parent, "children", children);
     children.push_back(child);
     parent[L"children"] = children;
   }

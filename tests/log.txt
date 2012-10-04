@@ -1,112 +1,112 @@
-[Wed Oct  3 00:37:32 2012] [Init] Changeset 53a82c7, changeset number 4, build number 0
-[Wed Oct  3 00:37:32 2012] OrientDB test: Start
-[Wed Oct  3 00:37:32 2012] orientsrv::connect(): Connected to localhost:2424, protocol: 12, SRV session [0x109]
-[Wed Oct  3 00:37:33 2012] DB test dropped
-[Wed Oct  3 00:37:35 2012] DB test created
-[Wed Oct  3 00:37:35 2012] orientdb::open(): Opened DB test, DB session [0x10a]
-[Wed Oct  3 00:37:35 2012] DB size: 4217
-[Wed Oct  3 00:37:35 2012] DB records count: 10
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:56] drop class Slices
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:59] create class Slices extends V
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 9
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:61] create property Slices.name STRING
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 3
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:63] create property Slices.description STRING
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 4
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:65] create class connected_to extends E
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 10
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:68] create vertex Slices create vertex Slices set name='Dao', description='Root'
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 Slices@name:"Dao",description:"Root"
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:71] create vertex Slices set name='Texts', description='Texts, Docs'
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 Slices@name:"Texts",description:"Texts, Docs"
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:74] create edge connected_to from #11:1 to #11:0
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 connected_to@out:#11:1,in:#11:0
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:76] create vertex Slices set name='Books', description='Books'
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 Slices@name:"Books",description:"Books"
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:78] create edge connected_to from #11:2 to #11:1
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 connected_to@out:#11:2,in:#11:1
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:81] create vertex Slices set name='Programming', description='All about programming'
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 Slices@name:"Programming",description:"All about programming"
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:84] create edge connected_to from #11:3 to #11:0
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 connected_to@out:#11:3,in:#11:0
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:86] create vertex Slices set name='Languages', description='All languages'
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 Slices@name:"Languages",description:"All languages"
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:89] create edge connected_to from #11:4 to #11:3
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 connected_to@out:#11:4,in:#11:3
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:91] create vertex Slices set name='C', description='C language'
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 Slices@name:"C",description:"C language"
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:93] create edge connected_to from #11:5 to #11:4
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 connected_to@out:#11:5,in:#11:4
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:95] create vertex Slices set name='C++', description='C++ language'
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 Slices@name:"C++",description:"C++ language"
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:97] create edge connected_to from #11:6 to #11:4
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 connected_to@out:#11:6,in:#11:4
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:100] create vertex Slices set name='Images', description='Pictures'
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 Slices@name:"Images",description:"Pictures"
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:103] create edge connected_to from #11:7 to #11:0
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 connected_to@out:#11:7,in:#11:0
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:105] create vertex Slices set name='Nature', description='Pics of nature'
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 Slices@name:"Nature",description:"Pics of nature"
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:107] create edge connected_to from #11:8 to #11:7
-[Wed Oct  3 00:37:35 2012] Result has 1 records
-[Wed Oct  3 00:37:35 2012] #0 connected_to@out:#11:8,in:#11:7
-[Wed Oct  3 00:37:35 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:110] traverse * from V
-[Wed Oct  3 00:37:35 2012] Result has 17 records
-[Wed Oct  3 00:37:35 2012] #0 Slices@in:[#12:0,#12:2,#12:6],name:"Dao",description:"Root"
-[Wed Oct  3 00:37:35 2012] #1 connected_to@out:#11:1,in:#11:0
-[Wed Oct  3 00:37:35 2012] #2 Slices@name:"Texts",description:"Texts, Docs",out:[#12:0],in:[#12:1]
-[Wed Oct  3 00:37:35 2012] #3 connected_to@out:#11:2,in:#11:1
-[Wed Oct  3 00:37:35 2012] #4 Slices@name:"Books",description:"Books",out:[#12:1]
-[Wed Oct  3 00:37:35 2012] #5 connected_to@out:#11:3,in:#11:0
-[Wed Oct  3 00:37:35 2012] #6 Slices@name:"Programming",description:"All about programming",out:[#12:2],in:[#12:3]
-[Wed Oct  3 00:37:35 2012] #7 connected_to@out:#11:4,in:#11:3
-[Wed Oct  3 00:37:35 2012] #8 Slices@in:[#12:4,#12:5],name:"Languages",description:"All languages",out:[#12:3]
-[Wed Oct  3 00:37:35 2012] #9 connected_to@out:#11:5,in:#11:4
-[Wed Oct  3 00:37:35 2012] #10 Slices@name:"C",description:"C language",out:[#12:4]
-[Wed Oct  3 00:37:35 2012] #11 connected_to@out:#11:6,in:#11:4
-[Wed Oct  3 00:37:35 2012] #12 Slices@name:"C++",description:"C++ language",out:[#12:5]
-[Wed Oct  3 00:37:35 2012] #13 connected_to@out:#11:7,in:#11:0
-[Wed Oct  3 00:37:35 2012] #14 Slices@name:"Images",description:"Pictures",out:[#12:6],in:[#12:7]
-[Wed Oct  3 00:37:35 2012] #15 connected_to@out:#11:8,in:#11:7
-[Wed Oct  3 00:37:35 2012] #16 Slices@name:"Nature",description:"Pics of nature",out:[#12:7]
-[Wed Oct  3 00:37:35 2012] Dumping tree
-[Wed Oct  3 00:37:35 2012] #11:0
-[Wed Oct  3 00:37:35 2012] #12:0
-[Wed Oct  3 00:37:35 2012] #11:1
-[Wed Oct  3 00:37:35 2012] #12:1
-[Wed Oct  3 00:37:35 2012] #11:2
-[Wed Oct  3 00:37:35 2012] #12:2
-[Wed Oct  3 00:37:35 2012] #11:3
-[Wed Oct  3 00:37:35 2012] #12:3
-[Wed Oct  3 00:37:35 2012] #11:4
-[Wed Oct  3 00:37:35 2012] #12:4
-[Wed Oct  3 00:37:35 2012] #11:5
-[Wed Oct  3 00:37:35 2012] #12:5
-[Wed Oct  3 00:37:35 2012] #11:6
-[Wed Oct  3 00:37:35 2012] #12:6
-[Wed Oct  3 00:37:35 2012] #11:7
-[Wed Oct  3 00:37:35 2012] #12:7
-[Wed Oct  3 00:37:35 2012] #11:8
-[Wed Oct  3 00:37:35 2012] JSON: 
-[Wed Oct  3 00:37:35 2012] DB test closed
-[Wed Oct  3 00:37:35 2012] OrientDB test: Done
+[Thu Oct  4 10:31:29 2012] [Init] Changeset 758bbc2, changeset number 8, build number 0
+[Thu Oct  4 10:31:29 2012] OrientDB test: Start
+[Thu Oct  4 10:31:29 2012] orientsrv::connect(): Connected to localhost:2424, protocol: 12, SRV session [0xda]
+[Thu Oct  4 10:31:29 2012] orientdb::open(): Opened DB test, DB session [0xdb]
+[Thu Oct  4 10:31:29 2012] DB size: 6010
+[Thu Oct  4 10:31:29 2012] DB records count: 27
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:129] drop class Slices
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:131] drop class connected_to
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:134] create class Slices extends V
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 9
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:136] create property Slices.name STRING
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 3
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:138] create property Slices.description STRING
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 4
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:140] create class connected_to extends E
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 10
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:143] create vertex Slices create vertex Slices set name='Dao', description='Root'
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #11:0 class:Slices, t: string, n:description, v:Root, t: string, n:name, v:Dao
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:146] create vertex Slices set name='Texts', description='Texts, Docs'
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #11:1 class:Slices, t: string, n:description, v:Texts, Docs, t: string, n:name, v:Texts
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:149] create edge connected_to from #11:1 to #11:0
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #12:0 class:connected_to, t: link, n:in, v:11:0, t: link, n:out, v:11:1
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:151] create vertex Slices set name='Books', description='Books'
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #11:2 class:Slices, t: string, n:description, v:Books, t: string, n:name, v:Books
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:153] create edge connected_to from #11:2 to #11:1
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #12:1 class:connected_to, t: link, n:in, v:11:1, t: link, n:out, v:11:2
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:156] create vertex Slices set name='Programming', description='All about programming'
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #11:3 class:Slices, t: string, n:description, v:All about programming, t: string, n:name, v:Programming
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:159] create edge connected_to from #11:3 to #11:0
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #12:2 class:connected_to, t: link, n:in, v:11:0, t: link, n:out, v:11:3
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:161] create vertex Slices set name='Languages', description='All languages'
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #11:4 class:Slices, t: string, n:description, v:All languages, t: string, n:name, v:Languages
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:164] create edge connected_to from #11:4 to #11:3
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #12:3 class:connected_to, t: link, n:in, v:11:3, t: link, n:out, v:11:4
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:166] create vertex Slices set name='C', description='C language'
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #11:5 class:Slices, t: string, n:description, v:C language, t: string, n:name, v:C
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:168] create edge connected_to from #11:5 to #11:4
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #12:4 class:connected_to, t: link, n:in, v:11:4, t: link, n:out, v:11:5
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:170] create vertex Slices set name='C++', description='C++ language'
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #11:6 class:Slices, t: string, n:description, v:C++ language, t: string, n:name, v:C++
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:172] create edge connected_to from #11:6 to #11:4
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #12:5 class:connected_to, t: link, n:in, v:11:4, t: link, n:out, v:11:6
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:175] create vertex Slices set name='Images', description='Pictures'
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #11:7 class:Slices, t: string, n:description, v:Pictures, t: string, n:name, v:Images
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:178] create edge connected_to from #11:7 to #11:0
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #12:6 class:connected_to, t: link, n:in, v:11:0, t: link, n:out, v:11:7
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:180] create vertex Slices set name='Nature', description='Pics of nature'
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #11:8 class:Slices, t: string, n:description, v:Pics of nature, t: string, n:name, v:Nature
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:182] create edge connected_to from #11:8 to #11:7
+[Thu Oct  4 10:31:29 2012] Result has 1 records
+[Thu Oct  4 10:31:29 2012] #0 #12:7 class:connected_to, t: link, n:in, v:11:7, t: link, n:out, v:11:8
+[Thu Oct  4 10:31:29 2012] OrientPP::query [SQL] [OrientDBTest():test.cpp:185] traverse * from V
+[Thu Oct  4 10:31:29 2012] Result has 17 records
+[Thu Oct  4 10:31:29 2012] #0 #11:0 class:Slices, t: string, n:description, v:Root, t: collection, n:in, v:#12:0,#12:2,#12:6, t: string, n:name, v:Dao
+[Thu Oct  4 10:31:29 2012] #1 #12:0 class:connected_to, t: link, n:in, v:11:0, t: link, n:out, v:11:1
+[Thu Oct  4 10:31:29 2012] #2 #11:1 class:Slices, t: string, n:description, v:Texts, Docs, t: collection, n:in, v:#12:1, t: string, n:name, v:Texts, t: collection, n:out, v:#12:0
+[Thu Oct  4 10:31:29 2012] #3 #12:1 class:connected_to, t: link, n:in, v:11:1, t: link, n:out, v:11:2
+[Thu Oct  4 10:31:29 2012] #4 #11:2 class:Slices, t: string, n:description, v:Books, t: string, n:name, v:Books, t: collection, n:out, v:#12:1
+[Thu Oct  4 10:31:29 2012] #5 #12:2 class:connected_to, t: link, n:in, v:11:0, t: link, n:out, v:11:3
+[Thu Oct  4 10:31:29 2012] #6 #11:3 class:Slices, t: string, n:description, v:All about programming, t: collection, n:in, v:#12:3, t: string, n:name, v:Programming, t: collection, n:out, v:#12:2
+[Thu Oct  4 10:31:29 2012] #7 #12:3 class:connected_to, t: link, n:in, v:11:3, t: link, n:out, v:11:4
+[Thu Oct  4 10:31:29 2012] #8 #11:4 class:Slices, t: string, n:description, v:All languages, t: collection, n:in, v:#12:4,#12:5, t: string, n:name, v:Languages, t: collection, n:out, v:#12:3
+[Thu Oct  4 10:31:29 2012] #9 #12:4 class:connected_to, t: link, n:in, v:11:4, t: link, n:out, v:11:5
+[Thu Oct  4 10:31:29 2012] #10 #11:5 class:Slices, t: string, n:description, v:C language, t: string, n:name, v:C, t: collection, n:out, v:#12:4
+[Thu Oct  4 10:31:29 2012] #11 #12:5 class:connected_to, t: link, n:in, v:11:4, t: link, n:out, v:11:6
+[Thu Oct  4 10:31:29 2012] #12 #11:6 class:Slices, t: string, n:description, v:C++ language, t: string, n:name, v:C++, t: collection, n:out, v:#12:5
+[Thu Oct  4 10:31:29 2012] #13 #12:6 class:connected_to, t: link, n:in, v:11:0, t: link, n:out, v:11:7
+[Thu Oct  4 10:31:29 2012] #14 #11:7 class:Slices, t: string, n:description, v:Pictures, t: collection, n:in, v:#12:7, t: string, n:name, v:Images, t: collection, n:out, v:#12:6
+[Thu Oct  4 10:31:29 2012] #15 #12:7 class:connected_to, t: link, n:in, v:11:7, t: link, n:out, v:11:8
+[Thu Oct  4 10:31:29 2012] #16 #11:8 class:Slices, t: string, n:description, v:Pics of nature, t: string, n:name, v:Nature, t: collection, n:out, v:#12:7
+[Thu Oct  4 10:31:29 2012] Creating tree
+[Thu Oct  4 10:31:29 2012] node: #11:8
+[Thu Oct  4 10:31:29 2012] link: #12:7, from: 11:7, to: 11:8
+[Thu Oct  4 10:31:29 2012] node: #11:7
+[Thu Oct  4 10:31:29 2012] link: #12:6, from: 11:0, to: 11:7
+[Thu Oct  4 10:31:29 2012] node: #11:6
+[Thu Oct  4 10:31:29 2012] link: #12:5, from: 11:4, to: 11:6
+[Thu Oct  4 10:31:29 2012] node: #11:5
+[Thu Oct  4 10:31:29 2012] link: #12:4, from: 11:4, to: 11:5
+[Thu Oct  4 10:31:29 2012] node: #11:4
+[Thu Oct  4 10:31:29 2012] link: #12:3, from: 11:3, to: 11:4
+[Thu Oct  4 10:31:29 2012] node: #11:3
+[Thu Oct  4 10:31:29 2012] link: #12:2, from: 11:0, to: 11:3
+[Thu Oct  4 10:31:29 2012] node: #11:2
+[Thu Oct  4 10:31:29 2012] link: #12:1, from: 11:1, to: 11:2
+[Thu Oct  4 10:31:29 2012] node: #11:1
+[Thu Oct  4 10:31:29 2012] link: #12:0, from: 11:0, to: 11:1
+[Thu Oct  4 10:31:29 2012] root node: #11:0
+[Thu Oct  4 10:31:29 2012] Processing 8 links
+[Thu Oct  4 10:31:29 2012] JSON: {"slices":{"children":[{"children":[{"description":"Pics of nature","name":"Nature"}],"description":"Pictures","name":"Images"},{"children":[{"children":[{"description":"C++ language","name":"C++"},{"description":"C language","name":"C"}],"description":"All languages","name":"Languages"}],"description":"All about programming","name":"Programming"},{"children":[{"description":"Books","name":"Books"}],"description":"Texts, Docs","name":"Texts"}],"description":"Root","name":"Dao"}}
+[Thu Oct  4 10:31:29 2012] DB test closed
+[Thu Oct  4 10:31:29 2012] OrientDB test: Done

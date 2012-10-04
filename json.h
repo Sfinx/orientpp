@@ -1,4 +1,6 @@
 
+// Copyright (C) 2012, Rus V. Brushkoff, All rights reserved.  
+
 #ifndef _ORIENT_JSON_H_
 #define _ORIENT_JSON_H_
 
