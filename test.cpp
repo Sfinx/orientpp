@@ -40,7 +40,7 @@ class orienttree {
         // app_log << type << ": " << string(res->records[r].rid);
       }
     }
-    app_log << "1 pass: Processed " << vertexes << " nodes and " << edges << " links";
+    app_log << "1 pass: Read " << vertexes << " nodes and " << edges << " links";
     uint linked = 0;
     for (vector <orient_record_t>::iterator it = links.begin(); it != links.end();) {
       orient_record_t link = *it;
