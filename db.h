@@ -501,7 +501,6 @@ struct rid_t {
 struct orient_record_t {
   u8 type;
   rid_t rid;
-  s64 pos;
   s32 version;
   string content;
   bool parsed;
