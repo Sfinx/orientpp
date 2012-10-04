@@ -18,6 +18,9 @@ class orienttree {
     app_log << "Creating tree";
     vector <orient_record_t> links;
     uint vertexes = 0, edges = 0;
+#ifdef DO_NOT_WORK_WITH_CURRENT_JSON_LIB
+    uint connected_edges = 0;
+#endif
     uint r = res->records.size();
     while (r--) {
       bool link = (res->records[r].rid.id != root.rid.id); 
@@ -39,27 +42,47 @@ class orienttree {
           type = "root " + type;
         // app_log << type << ": " << string(res->records[r].rid);
       }
+#ifdef DO_NOT_WORK_WITH_CURRENT_JSON_LIB
+      if (links.size()) {
+        if (try_connect_link(links.back())) {
+          links.pop_back();
+          connected_edges++;
+        }
+      }
+#endif
     }
-    app_log << "1 pass: Read " << vertexes << " nodes and " << edges << " links";
-    uint linked = 0;
-    for (vector <orient_record_t>::iterator it = links.begin(); it != links.end();) {
-      orient_record_t link = *it;
-      if (node_exists(link.get_property("in")) && node_exists(link.get_property("out"))) {
-        json_spirit::wmObject &in = get_node(link.get_property("in")),
-          &out = get_node(link.get_property("out"));
-        // connect slice in (child) to slice out (parent)
-        add_child(in, out);
-        links.erase(it);
-        linked++;
-      } else
-           it++;
+    app_log << "1 pass: Read " << vertexes << " nodes and " << edges << " links, "
+#ifdef DO_NOT_WORK_WITH_CURRENT_JSON_LIB
+     << connected_edges << " already connected";
+#else
+;
+#endif
+    if (links.size()) {
+      uint linked = 0;
+      for (vector <orient_record_t>::iterator it = links.begin(); it != links.end();) {
+        if (try_connect_link(*it)) {
+          links.erase(it);
+          linked++;
+        } else
+             it++;
+      }
+      app_log << "2 pass: Done " << linked << " links";
+      if (links.size())
+        throw Exception("Unconnected links remains: " + itoa(links.size()));
     }
-    app_log << "2 pass: Done " << linked << " links";
-    if (links.size())
-      throw Exception("Unconnected links remains: " + itoa(links.size()));
     string root_rid(string(root.rid).c_str() + 1);
     json_spirit::wmObject &root_slice = get_node_str(root_rid);
     tree[L"slices"] = root_slice;
+  }
+  bool try_connect_link(orient_record_t &link) {
+    if (node_exists(link.get_property("in")) && node_exists(link.get_property("out"))) {
+      json_spirit::wmObject &in = get_node(link.get_property("in")),
+         &out = get_node(link.get_property("out"));
+         // connect slice in (child) to slice out (parent)
+         add_child(in, out);
+         return true;
+    }
+    return false;
   }
   json_spirit::wmObject &get_node_str(string &rid) {
     map <string, json_spirit::wmObject>::iterator it = rid2slice.find(rid);
