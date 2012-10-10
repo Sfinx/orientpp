@@ -1,5 +1,2 @@
 
- - figure out the correct id of the newly created class
  - transactions support [ db.begin() / db.commit() / db.rollback() ]
- - multithreaded concurrent operations
- - object2record operations [db.save(OrientTree)]
