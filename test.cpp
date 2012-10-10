@@ -1,9 +1,46 @@
 
 // Copyright (C) 2012, Rus V. Brushkoff, All rights reserved.  
 
-#include "orient.h"
+#include "db.h"
 
 using namespace OrientPP;
+
+string dump_record(orient_record_t &r)
+{
+  stringstream ss;
+  if (r.rid.valid) {
+    if (r.is_document()) {
+      ss << string(r.rid) << " class:" << r.classof();
+      for (property_iterator it = r.properties.begin();
+        it != r.properties.end(); it++) {
+          property_t p = it->second;
+          ss << " t:" << p.type2str() << " n:" << p.name << " v:" << string(p);
+          if (p.type == ORIENT_RECORD_TYPE_COLLECTION) {
+            ss << " [";
+            for (uint i = 0; i < p.embedded.size(); i++) {
+              if (i)
+                ss << " | ";
+              ss << "t:" << p.embedded[i].type2str();
+              if (p.embedded[i].name.size())
+                ss << " n:" << p.embedded[i].name;
+              ss << " v:" << string(p.embedded[i]);
+            }
+            ss << " ]";
+          }
+      }
+    } else
+        ss << string(r.rid) << " " << string(r);
+  } else
+      ss << string(r);
+  return ss.str();
+}
+
+void dump_result(orientresult_ptr res)
+{
+ app_log << "Result has " << res->records.size() << " records";
+ for (u32 r = 0; r < res->records.size(); r++)
+   app_log << "#" << r << " " << dump_record(res->records[r]);
+}
 
 class orienttree {
   orient_record_t root;
@@ -27,13 +64,17 @@ class orienttree {
 #endif
     uint r = res->records.size();
     while (r--) {
+      if ((res->records[r].rid.id == 4) || (res->records[r].rid.id == 5)) {
+        // app_log << "skipping " << res->records[r].rid.id;
+        continue;
+      }
       string type = isnode(res->records[r]) ? "node" : "link";
       if (!isnode(res->records[r])) {
         edges++;
         links.push_back(res->records[r]);
-        // app_log << type << ": " << string(res->records[r].rid) << ", from: "
-        //  << string(res->records[r].get_property("in")) << ", to: "
-        //  << string(res->records[r].get_property("out"));
+         app_log << type << ": " << string(res->records[r].rid) << ", from: "
+          << string(res->records[r].get_property("in")) << ", to: "
+          << string(res->records[r].get_property("out"));
       } else {
         vertexes++;
         json_spirit::wmObject slice;
@@ -42,7 +83,7 @@ class orienttree {
         rid2slice.insert(pair<string, json_spirit::wmObject>(res->records[r].rid.str(), slice));
         if (!r)
           type = "root " + type;
-        // app_log << type << ": " << string(res->records[r].rid);
+        app_log << type << ": " << string(res->records[r].rid);
       }
 #ifdef DO_NOT_WORK_WITH_CURRENT_JSON_LIB
       if (links.size()) {
@@ -69,8 +110,10 @@ class orienttree {
              it++;
       }
       app_log << "2 pass: Done " << linked << " links";
-      if (links.size())
+      if (links.size()) {
+        dump_record(links[0]);
         throw Exception("Unconnected links remains: " + itoa(links.size()));
+      }
     }
     tree[L"slices"] = get_node(root.rid.str());
   }
@@ -107,10 +150,10 @@ class orienttree {
     return true;
   }    
   void fill_node(json_spirit::wmObject &obj, orient_record_t &rec) {
-    json_add_str(obj, "rid", string(rec.rid));
+    json_add_str(obj, "oid", string(rec.rid));
     for (property_iterator it = rec.properties.begin(); it != rec.properties.end(); it++) {
       property_t p = it->second;
-      if (p.name == "in" || p.name == "out")
+      if (p.name == "in" || p.name == "out" || p.name == "_allow")
         continue;
       json_add_str(obj, p.name, string(p));
     }
@@ -121,30 +164,14 @@ class orienttree {
     children.push_back(child);
     parent[L"children"] = children;
   }
-  string tojson() { return json_write(tree); }
+  void tojson(json_spirit::wmObject &o) { o = tree; }
+  string tojson() {
+    string res = json_write(tree);
+    res.erase(res.end() - 1);
+    res.erase(res.begin());
+    return res;
+  }
 };
-
-void dump_result(orientresult_ptr res)
-{
- app_log << "Result has " << res->records.size() << " records";
- for (u32 r = 0; r < res->records.size(); r++) {
-   stringstream ss;
-   if (res->records[r].rid.valid) {
-     if (res->records[r].is_document()) {
-       ss << "#" << r << " " << string(res->records[r].rid) << " class:" << res->records[r].classof();
-       for (property_iterator it = res->records[r].properties.begin();
-         it != res->records[r].properties.end(); it++) {
-           property_t p = it->second;
-           ss << ", t: " << p.type2str() << ", n:" << p.name << ", v:" << string(p);
-       }
-     } else
-       ss << "#" << r << " " << string(res->records[r].rid) << " " << string(res->records[r]);
-   } else
-     ss << "#" << r << " " << string(res->records[r]);
-   app_log << ss.str();
-   ss.str("");
- }
-}
 
 orient_record_t create_slice(orientquery &q, string name, string description)
 {
@@ -167,6 +194,22 @@ orient_record_t connect_records(orientquery &q, orient_record_t from, orient_rec
  return q.insert_id;
 }
 
+void dump_tree(orientquery &q, orient_record_t &from, int link_class_id)
+{
+ q << "traverse V.in, E.out from " << string(from);
+ orientresult_ptr res = q.execute(AS_SQL);
+ dump_result(res);
+ if (res->records.size()) {
+   orienttree tree(res /*, from */ , link_class_id);
+   //app_log << "JSON(" << string(from) << "): " << tree.tojson();
+   json_spirit::wmObject v;
+   tree.tojson(v);
+   app_log << "JSON(" << string(from) << "): " << json_write(v);
+ }
+}
+
+#define TEST_SELECT	1
+
 void OrientDBTest()
 {
  app_log << "OrientDB test: Start";
@@ -175,30 +218,36 @@ void OrientDBTest()
  server.shutdown();
 #endif
 #if TEST_DROP
- if (server.dbexists("test"))
-   server.dropdb("test");
- server.createdb("test", AS_GRAPH_DB, DB_LOCAL_STORAGE);
+ if (server.dbexists("sfinx"))
+   server.dropdb("sfinx");
+ server.createdb("sfinx", AS_GRAPH_DB, DB_LOCAL_STORAGE);
 #endif
-// if (!server.dbexists("test"))
-//   server.createdb("test", AS_GRAPH_DB, DB_LOCAL_STORAGE);
  orientdb db(server);
- db.open("test2", AS_GRAPH_DB, "admin", "admin");
+ db.open("sfinx", AS_GRAPH_DB, "admin", "admin");
  app_log << "DB size: " << db.size();
  app_log << "DB records count: " << db.count();
-
  orientquery q(db);
 #ifdef TEST_SELECT
- q << "select * from ouser";
+ q << "select * from ouser where name = 'admin@admin.com'";
  dump_result(q.execute(AS_SQL));
 #endif
- return;
+
+#ifdef TEST1
+ q << "alter class V superclass orestricted";
+ q.execute(AS_SQL);
+ q << "alter class E superclass orestricted";
+ q.execute(AS_SQL);
+ q << "insert into ouser set name = 'user1', status = 'ACTIVE', password = 'pass1', roles = [#4:2]";
+ q.execute(AS_SQL);
+ q << "insert into ouser set name = 'user2', status = 'ACTIVE', password = 'pass2', roles = [#4:2]";
+ q.execute(AS_SQL);
  q << "drop class Slices";
  q.execute(AS_SQL);
  q << "drop class Notes";
  q.execute(AS_SQL);
  q << "drop class connected_to";
  q.execute(AS_SQL);
-
+ 
  q << "create class Slices extends V";
  dump_result(q.execute(AS_SQL));
  q << "create property Slices.name STRING";
@@ -215,7 +264,21 @@ void OrientDBTest()
 
  q << "create class connected_to extends E";
  dump_result(q.execute(AS_SQL));
- 
+
+/* q << "truncate class Slices";
+ q.execute(AS_SQL);
+ q << "truncate class Notes";
+ q.execute(AS_SQL);
+ q << "truncate class connected_to";
+ q.execute(AS_SQL);*/
+
+ q << "delete from Slices";
+ q.execute(AS_SQL);
+ q << "delete from  Notes";
+ q.execute(AS_SQL);
+ q << "delete from connected_to";
+ q.execute(AS_SQL);
+
  orient_record_t root_slice = create_slice(q, "Dao", "Root");
  orient_record_t texts_slice = create_slice(q, "Texts", "Texts, Docs");
  orient_record_t edge = connect_records(q, texts_slice, root_slice);
@@ -234,12 +297,19 @@ void OrientDBTest()
  orient_record_t note = create_note(q, "Memento Mori", "What are we living for ?");
  connect_records(q, note, texts_slice);
 
- q << "traverse * from V"; // << string(root_slice);
- orientresult_ptr res = q.execute(AS_SQL);
- dump_result(res);
+ dump_tree(q, root_slice, link_class_id);
+ dump_tree(q, texts_slice, link_class_id);
 
- orienttree sfinx_objects_tree(res /*, root_slice */ , link_class_id);
- app_log << "JSON: " << sfinx_objects_tree.tojson();
+ // delete tree from slice
+ q << "delete from (traverse V.in, E.out from " << string(texts_slice) << ")";
+ dump_result(q.execute(AS_SQL));
+ // delete remaining link to slice
+ q << "delete from connected_to where out = " << string(texts_slice);
+ dump_result(q.execute(AS_SQL));
+
+ dump_tree(q, root_slice, link_class_id);
+ dump_tree(q, texts_slice, link_class_id);
+#endif
 
 #ifdef WHEN_JS_SOMETIME_WILL_WORK_IN_SNAPSHOT
  q << "var r = db.query('select from ouser');print(r);r";
@@ -273,10 +343,10 @@ int main(int argc, char **argv) {
     app_log << "[Init] OrientDB Exception: " << e.what();
   }
   catch (exception& e) {
-      app_log << "[Init] Std Exception: " << e.what();
-  }    
+    app_log << "[Init] Std Exception: " << e.what();
+  }
   catch (...) {
-      app_log << "[Init] Unknown Exception";
-  }    
+    app_log << "[Init] Unknown Exception";
+  }
   return 0;
 }
