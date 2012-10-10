@@ -23,9 +23,7 @@ OrientPP::app_logger::~app_logger()
  if (debug.log_to_file) {
    ofstream flog;
    flog.open(debug.log_file.c_str(), ios::app);
-   // ios_base::sync_with_stdio(false);
-   clog.rdbuf(flog.rdbuf());
-   clog << m.str() << endl;
+   flog << m.str() << endl;
    flog.close();
  }
 }

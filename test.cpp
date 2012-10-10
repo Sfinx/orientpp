@@ -164,8 +164,8 @@ class orienttree {
     children.push_back(child);
     parent[L"children"] = children;
   }
-  void tojson(json_spirit::wmObject &o) { o = tree; }
-  string tojson() {
+  json_spirit::wmObject &json() { return tree; }
+  string json_str() {
     string res = json_write(tree);
     res.erase(res.end() - 1);
     res.erase(res.begin());
@@ -200,11 +200,8 @@ void dump_tree(orientquery &q, orient_record_t &from, int link_class_id)
  orientresult_ptr res = q.execute(AS_SQL);
  dump_result(res);
  if (res->records.size()) {
-   orienttree tree(res /*, from */ , link_class_id);
-   //app_log << "JSON(" << string(from) << "): " << tree.tojson();
-   json_spirit::wmObject v;
-   tree.tojson(v);
-   app_log << "JSON(" << string(from) << "): " << json_write(v);
+   orienttree tree(res, link_class_id);
+   app_log << "JSON(" << string(from) << "): " << json_write(tree.json());
  }
 }
 
