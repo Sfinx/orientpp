@@ -6,7 +6,12 @@ This is simple C++ binding for OrientDB
 Compile
 =======
 
-make
+You will need installed :
+
+1) http://sourceforge.net/projects/utfcpp
+2) https://github.com/sirikata/json-spirit
+
+Next, issue make
 
 Usage example
 ====================
