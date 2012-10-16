@@ -275,6 +275,10 @@ orientresult_ptr orientquery::execute_debug(const char *file, int line, const ch
 orientresult_ptr orientquery::execute(const char *qs, int query_type)
 #endif
 {
+ bool reconnecting = false;
+ orientresult_ptr result(new orientresult);
+restart:
+ try {
   if (!prepared) {
     if (qs)
       q = qs;
@@ -283,7 +287,7 @@ orientresult_ptr orientquery::execute(const char *qs, int query_type)
     buf.str("");
   }
   if (!q.size()) // empty query
-    return orientresult_ptr(new orientresult);
+    return result;
   orientsrv_buf r;
   // (mode:byte)(command-serialized:bytes)
   // 'a' - async, 's' - sync
@@ -343,7 +347,6 @@ orientresult_ptr orientquery::execute(const char *qs, int query_type)
   // [(payload-status:byte)[(content:?)]*]+
   u8 payload_status;
   rsp.parse(&payload_status);
-  orientresult_ptr result(new orientresult());
   switch (payload_status) {
     case 'l': // collection of records
       parse_records_collection(rsp, &(result->records));
@@ -376,7 +379,17 @@ orientresult_ptr orientquery::execute(const char *qs, int query_type)
   }
   if (db->verbose() > 1)
     app_log << "Query returns " << result->records.size() << " records";
-  return result;
+ }
+ catch (boost::system::system_error &e) {
+   if (!reconnecting && ((e.code() == boost::asio::error::eof) ||
+     (e.code() == boost::asio::error::broken_pipe))) {
+       reconnecting = true;
+       db->reconnect();
+       goto restart;
+   } else
+      db->error(string("orientquery::execute(): ") + e.what());
+ }
+ return result;
 }
 
 orient_record_t orient_null;

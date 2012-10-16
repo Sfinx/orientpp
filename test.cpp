@@ -206,6 +206,7 @@ void dump_tree(orientquery &q, orient_record_t &from, int link_class_id)
 }
 
 #define TEST_SELECT	1
+#define TEST_RECONNECT	1
 
 void OrientDBTest()
 {
@@ -224,6 +225,13 @@ void OrientDBTest()
  app_log << "DB size: " << db.size();
  app_log << "DB records count: " << db.count();
  orientquery q(db);
+#ifdef TEST_RECONNECT
+ q << "select * from ouser where name = 'admin@admin.com'";
+ dump_result(q.execute(AS_SQL));
+ app_log << "sleeping, restart the server for reconnect";
+ sleep(10);
+ app_log << "sleeping done";
+#endif
 #ifdef TEST_SELECT
  q << "select * from ouser where name = 'admin@admin.com'";
  dump_result(q.execute(AS_SQL));

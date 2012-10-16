@@ -5,6 +5,7 @@
 #define _ORIENTPP_DB_H_
 
 #include <stdint.h>
+#include <errno.h>
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -118,7 +119,8 @@ public:
     timeout_seconds = ORIENTPP_DEFAULT_OPS_TIMEOUT;
     verbose_ = false;
   }
-  void close() { socket_.close(); io_service_.stop(); }
+  ~tcp_client() { socket_.close(); io_service_.stop(); }
+  void close() { socket_.close(); }
   void connect(const string& host, const string &port) {
     tcp::resolver::query query(host, port);
     tcp::resolver::iterator iter = tcp::resolver(io_service_).resolve(query);
@@ -360,6 +362,12 @@ class orientsrv {
   }
   void verbose(int v) { verbose_level = v; if (v > 1) tc.verbose(1); else tc.verbose(0); }
   int verbose() { return verbose_level; }
+  void reopen() {
+    tc.close();
+    session.connected = false;
+    session.id = -1;
+    connect(url, user, pass);
+  }
  public:
   bool dbexists(string db);
   void dropdb(string db);
@@ -391,7 +399,17 @@ class orientdb {
   int db_type;
   string db, user, pass;
   orientsession session;
+  void reopen() {
+    session.connected = false;
+    session.id = -1;
+    srv->reopen();
+    open(db, db_type, user, pass);
+  }
  public:
+  void reconnect() {
+    app_log << "Lost connection, reconnecting";
+    reopen();
+  }
   void open(string db_, int db_type_, string u, string p);
   u64 count();
   u64 size();
