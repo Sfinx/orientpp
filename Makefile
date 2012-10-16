@@ -1,5 +1,5 @@
 
-# Copyright (C) 2012, Rus V. Brushkoff, All rights reserved.  
+# Copyright (C) 2012, Rus V. Brushkoff, All rights reserved
 
 BOOST_LIB_PATH		:= /usr/lib64
 BOOST_INCLUDE_PATH	:= /usr/include

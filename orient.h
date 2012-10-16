@@ -1,5 +1,5 @@
 
-// Copyright (C) 2012, Rus V. Brushkoff, All rights reserved.
+// Copyright (C) 2012, Rus V. Brushkoff, All rights reserved
 
 #ifndef _ORIENTPP_DB_H_
 #define _ORIENTPP_DB_H_
@@ -362,12 +362,12 @@ class orientsrv {
   }
   void verbose(int v) { verbose_level = v; if (v > 1) tc.verbose(1); else tc.verbose(0); }
   int verbose() { return verbose_level; }
-  void reopen() {
+  void close() {
     tc.close();
     session.connected = false;
     session.id = -1;
-    connect(url, user, pass);
   }
+  void reopen() { connect(url, user, pass); }
  public:
   bool dbexists(string db);
   void dropdb(string db);
@@ -399,16 +399,17 @@ class orientdb {
   int db_type;
   string db, user, pass;
   orientsession session;
-  void reopen() {
+  void reconnect() {
+    app_log << "Lost SRV connection, reconnecting";
     session.connected = false;
     session.id = -1;
     srv->reopen();
-    open(db, db_type, user, pass);
   }
  public:
-  void reconnect() {
-    app_log << "Lost connection, reconnecting";
-    reopen();
+  void reopen() {
+    app_log << "Lost DB connection, reopening";
+    reconnect();
+    open(db, db_type, user, pass);
   }
   void open(string db_, int db_type_, string u, string p);
   u64 count();

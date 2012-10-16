@@ -1,5 +1,5 @@
 
-// Copyright (C) 2012, Rus V. Brushkoff, All rights reserved.  
+// Copyright (C) 2012, Rus V. Brushkoff, All rights reserved
 
 #ifndef _ORIENTPP_H_
 #define _ORIENTPP_H_

@@ -1,14 +1,19 @@
 
-// Copyright (C) 2012, Rus V. Brushkoff, All rights reserved.  
+// Copyright (C) 2012, Rus V. Brushkoff, All rights reserved
 
 #include "db.h"
 
 namespace OrientPP {
 
 unique_counter client_id;
+// connect lock, needed if multiple client/threaded reconnect occures
+boost::mutex c_lock;
 
 void orientsrv::connect(string _url, string _user, string _pass)
 {
+ boost::unique_lock<boost::mutex> lock(c_lock);
+ if (isconnected())
+   close();
  url = _url;
  // get host:port
  size_t pos = strcspn(_url.c_str(), ":");
@@ -80,13 +85,13 @@ void orientdb::close()
  if (!isconnected())
    return;
  if (verbose() > 1)
-   app_log << "Closing " << db;
+   app_log << "Closing " << db << " for user " << user;
  orientrsp rsp = send(ORIENTDB_DB_CLOSE);
  // no result returned (?!)
  session.connected = false;
  session.id = -1;
  if (verbose())
-   app_log << "DB " << db << " closed";
+   app_log << "DB " << db << " closed for user " << user;
 }
 
 void orientdb::open(string db_, int db_type_, string u, string p)
@@ -95,6 +100,9 @@ void orientdb::open(string db_, int db_type_, string u, string p)
    error("orientdb::open(): Connect to server first");
  if (isconnected())
    close();
+ bool reconnecting = false;
+restart:
+ try {
  if (verbose() > 1) {
    stringstream ss;
    ss << "orientdb::open(): Opening DB " << db_ << " on " << srv->host << ":"
@@ -119,8 +127,6 @@ void orientdb::open(string db_, int db_type_, string u, string p)
  r.append(pass);
  orientrsp rsp = send(ORIENTDB_DB_OPEN, r);
  rsp.parse(&session.id);
- if (verbose())
-   app_log << "orientdb::open(): Opened DB " << db << ", DB session [0x" << hex << session.id << "]";
  session.connected = true;
  // (session-id:int)(num-of-clusters:short)[(cluster-name:string)(cluster-id:short)
  // (cluster-type:string)(cluster-dataSegmentId:short)](cluster-config:bytes)
@@ -163,7 +169,20 @@ void orientdb::open(string db_, int db_type_, string u, string p)
    else {
      app_log << "DB has " << real_num_of_clusters << " clusters";
    }
+  }
+ if (verbose())
+   app_log << "orientdb::open(): Opened DB " << db << ", DB session [0x" << hex << session.id
+     << "] for user " << user;
  }
+ catch (boost::system::system_error &e) {
+   if (!reconnecting && ((e.code() == boost::asio::error::eof) ||
+     (e.code() == boost::asio::error::broken_pipe))) {
+       reconnecting = true;
+       reconnect();
+       goto restart;
+   } else
+      error(string("orientdb::open(): ") + e.what());
+ } 
 }
 
 bool orientsrv::dbexists(string db)
@@ -212,7 +231,7 @@ orientsrv::~orientsrv()
 {
  if (isconnected() && (verbose() > 1))
    app_log << "~orientsrv(): Disconnected from " << host << ":" << port;
- tc.close();
+ close();
 }
 
 orientdb::~orientdb()
@@ -384,7 +403,7 @@ restart:
    if (!reconnecting && ((e.code() == boost::asio::error::eof) ||
      (e.code() == boost::asio::error::broken_pipe))) {
        reconnecting = true;
-       db->reconnect();
+       db->reopen();
        goto restart;
    } else
       db->error(string("orientquery::execute(): ") + e.what());
