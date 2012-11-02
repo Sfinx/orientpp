@@ -97,7 +97,7 @@ void orientdb::close()
 void orientdb::open(string db_, int db_type_, string u, string p)
 {
  if (!srv->isconnected())
-   error("orientdb::open(): Connect to server first");
+   reconnect();
  if (isconnected())
    close();
  bool reconnecting = false;
