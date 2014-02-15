@@ -1,30 +1,25 @@
 About:
 =====
-
 This is simple C++ binding for OrientDB
 
 Compile
 =======
-
 You will need installed :
-
-1) http://sourceforge.net/projects/utfcpp
-2) https://github.com/sirikata/json-spirit
+* [UTF-8 CPP](http://sourceforge.net/projects/utfcpp)
+* [JSON Spirit](https://github.com/sirikata/json-spirit)
 
 Next, issue make
 
 Usage example
 ====================
-
-Study test.cpp
+Study `test.cpp`
 
 Support:
 =======
-
 Linux is supported.
 
 Author:
 ======
+Rus rus@sfinxsoft.com
 
-Rus <rus [at] sfinxsoft [dot] com>
 Web: http://sfinxsoft.com
